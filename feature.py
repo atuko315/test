@@ -625,8 +625,7 @@ class DatasetManager(object):
     
     def detect_actual_reach(self, path, system):
         content = load_data(path)
-        print("len")
-        print(len(content))
+        
         if len(content) < 5:
             importance, vboard, brance, fpath = content
         else:
@@ -637,9 +636,7 @@ class DatasetManager(object):
             None
         tmp = h[len(h)-2]
         fboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
-        #print("final")
-        #print(fboard)
-
+        
         valid = self.game.getValidMoves(fboard, getCurrentPlayer(fboard))
         valid = [i  for i in range(len(valid)) if valid[i]]
         reach = []
@@ -687,20 +684,21 @@ class DatasetManager(object):
         bcount = 0
         bfcount = 0
         bfdcount = 0
+        print(board)
         hot = system.detectHotState(board, analist, path, bstep, toend=True)
-        
+        print(hot[0])
         if hot[1] == None:
             return bcount, bfcount, bfdcount
         
         end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
         if end:
-            #print("reach")
-            #print(reach)
+            print("reach")
+            print(reach)
             #print(hot[0])
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
-            #print("fatal")
-            #print(fatal)
+            print("fatal")
+            print(fatal)
             fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
             if len(set(ru)) > 0:
@@ -735,11 +733,16 @@ class DatasetManager(object):
         else:
             imp, fboard, branch, fpath, importance = content
         
+        max_step = len(load_data(fpath))  - 2
+        
         valid = self.game.getValidMoves(board, getCurrentPlayer(board))
         valid = [i  for i in range(len(valid)) if valid[i]]
         l = len(valid) if len(valid) < baseline else baseline
-
-        counts = system.getPastCount(fpath, getStep(board), board, analist)
+        #print(fpath, getStep(board))
+        bstep = getStep(board)
+        bstep = max_step if bstep > max_step else bstep
+        
+        counts = system.getPastCount(fpath, bstep, board, analist)
         counts = np.argsort(np.array(counts))
         counts = [c for c in counts if c in valid]
         counts = counts[-l:]
@@ -751,6 +754,8 @@ class DatasetManager(object):
         return fboards
     
     def collect_promising(self, board, path, system, analist, step, baseline=3):
+        #print("start")
+        #print(board)
         assert step > 0
         boards = []
         boards = self.collect_promising_per_step(board.copy(), path, system, analist, baseline=baseline)
@@ -759,13 +764,16 @@ class DatasetManager(object):
         result = []
         for b in boards:
             tmp = self.collect_promising(b.copy(), path, system, analist, step-1, baseline=baseline)
-            result.extend(tmp)
-        
+            
+            if len(tmp) > 0:
+                result.extend(tmp)
+
+        #print("success")
         return result
         
             
     
-    def hot_states_one_way(self, board, path, system, analist, step, baseline=3, threshold=0.1, limit=100, toend=False):
+    def hot_states_one_way(self, board, path, system, analist, step, baseline=3):
         '''
         step分先のを集めてそこからはhotstatesつまり、step分先の盤面数
         path step の stepはbstep
@@ -774,6 +782,7 @@ class DatasetManager(object):
         '''
         assert step > 0
         reach = self.detect_actual_reach(path, system)
+        print(reach)
         bstep = getStep(board)
     
         content = load_data(path)
@@ -783,7 +792,7 @@ class DatasetManager(object):
             imp, vboard, branch, fpath, importance = content
         
         boards = self.collect_promising(board, path, system, analist, step, baseline=baseline)
-        print(boards)
+        #print(boards)
         
         rate, frate, fdrate = self.check_convergence(boards, reach, fpath, bstep, system, analist)
 
@@ -795,7 +804,7 @@ class DatasetManager(object):
         
 
     
-    def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, threshold=0.1, limit=100, toend=False):
+    def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, promising=3):
         '''
         一手先読みのbaseline変えたいときはなんとか頑張ってください
         '''
@@ -818,12 +827,12 @@ class DatasetManager(object):
         best_board = self.add_stone(board.copy(), getCurrentPlayer(board), best)
         second_board = self.add_stone(board.copy(), getCurrentPlayer(board), second)
 
-        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist=analist, step=step, threshold=threshold, limit=limit, toend=toend)
-        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist=analist, step=step, threshold=threshold, limit=limit, toend=toend)
+        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist=analist, step=step, baseline=promising)
+        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist=analist, step=step, baseline=promising)
 
         return brate, bfrate, bfdrate, srate, sfrate, sfdrate
     
-    def collect_two_ways(self, system, analist, step=3, baseline=1, threshold=0.1, limit=100, toend=False):
+    def collect_two_ways(self, system, analist, step=3, baseline=1, promising=3):
         size = len(self.path_set)
         ave_brate = 0
         ave_bfrate = 0
@@ -840,7 +849,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
             
-            brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, threshold=threshold, limit=limit, toend=toend)
+            brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, promising=promising)
             
             ave_brate += brate
             ave_bfrate += bfrate
