@@ -269,9 +269,7 @@ class System(object):
     def getImportantAction(self, board, analist, path, step, number):
         player = getCurrentPlayer(board)
         valids = self.game.getValidMoves(board, player)
-        #print(valids)
-        if len(valids) < number+1:
-            return None
+        #とりあえず最下位を渡す
         next_values = []
 
         for a in range(self.game.getActionSize()):
@@ -284,16 +282,15 @@ class System(object):
             next_value = -self.getPastValueNoModification(path, step, next_board, analist)
             next_values.append(next_value)
         
-        
-        #print(next_values)
         ranking = np.argsort(next_values)
-        #print(ranking)
+        ranking = ranking[::-1]
+        
         valids = [i  for i in range(len(valids)) if valids[i]]
-        ranking = [i for i in range(len(ranking)) if i in valids]
-        #print(valids)
-        #print(ranking)
-
-        return ranking[-number]
+        if len(valids) < number+1:
+            number = len(valids) - 1 # とりあえず最下位を渡す
+        ranking = [i for i in ranking if i in valids]
+       
+        return ranking[number]
             
 
 
@@ -326,7 +323,7 @@ class System(object):
 
     
     def getMyImportance(self, board, analist, path=-1, step=-1):
-        #　一番上から第1四分位数までの分散
+        #　一番上から第3四分位数までの分散
         player = getCurrentPlayer(board)
         past_mode = (type(path) != int and (step) != -1)
         valids = self.game.getValidMoves(board, player)
@@ -366,7 +363,7 @@ class System(object):
                 print("step: ", step)
                 board = boards[step]
                 print(board)
-                importance = self.getImportance(board, analist, path, step)
+                importance = self.getImportance(board, analist, path, step, baseline=1)
                 print(importance)
                 branch = boards[step-context_length: step+context_length+1]
                 sample = (importance, board, branch, path)
@@ -1225,8 +1222,7 @@ class System(object):
                 start_time = time.time()
                 while time.time() - start_time < timelimit:
                     v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
-                if verbose:
-                    print(v)
+                
                 #print(self.s_mcts.V[s])
                 
                 counts = [
@@ -1255,11 +1251,15 @@ class System(object):
             if reach:
                 valid = self.game.getValidMoves(board, getCurrentPlayer(board))
                 valid = [i  for i in range(len(valid)) if valid[i]]
+                candidate = []
                 for a in valid:
                     vboard = self.add_stone(board.copy(), getCurrentPlayer(board), a)
                     if self.game.getGameEnded(vboard, getCurrentPlayer(board)):
-                        action = a
-                        break
+                        candidate.append(a)
+
+                if len(candidate) > 0:
+                    a = choice(candidate)   
+                    
             
             tmp.append(self.s_mcts.Nsa.copy())
             tmp.append(self.b_mcts.Nsa.copy())
@@ -1295,9 +1295,12 @@ class System(object):
                 self.game.getCanonicalForm(board, curPlayer), 1)
             
             if valids[action] == 0:
+                print(board, action, curPlayer)
                 logger.error('Action {} is not valid!'.format(action))
                 logger.debug('valids = {}'.format(valids))
-                assert valids[action] > 0
+                
+                action = choice([i for i in range(len(valids)) if valids[i]])
+                
             
             #両mctsのnを保存、ｖも
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
@@ -1316,7 +1319,7 @@ class System(object):
         #得点ｖをかえしている
         #dataを保存する
         os.makedirs('./pdata/', exist_ok=True)
-        write_data(self.data, p=True)
+        #write_data(self.data, p=True)
         
         return curPlayer * self.game.getGameEnded(board, curPlayer)
     
@@ -1331,6 +1334,36 @@ class System(object):
             vboard = self.add_stone(board.copy(), getCurrentPlayer(board), a)
             if self.game.getGameEnded(vboard, getCurrentPlayer(board)):
                 return True, a
+        
+        if policy == "v2lr":
+            pattern = np.array(
+            [[0, 0, 0],
+            [0, 1, 0],
+            [0, 1, 0]]
+            )
+            contain_indices, pure_indices = self.match_pattern(board, pattern)
+            if len(contain_indices) > 0:
+                candidate = []
+                for s in contain_indices:
+                    h = int(s/width)
+                    w = s % width
+                    if w > 0:
+                        if board[h][w-1] == 0 and (h == height-1 or board[h+1][w-1] != 0):
+                            judge = True
+                            candidate.append(w-1)
+                        
+                    if w < height - 1:
+                        if board[h][w+1] == 0 and (h == height-1 or board[h+1][w+1] != 0):
+                           judge = True
+                           candidate.append(w+1)
+                    
+                if not judge:
+                    return judge, None
+                
+                action = choice(candidate)
+                #print( a in valid)
+                return judge, action
+
         if policy == "v2u":
             # パターンマッチング
             #　縦２が発生した瞬間つぶすので一つと仮定
@@ -1346,14 +1379,16 @@ class System(object):
                 for s in contain_indices:
                     h = int(s/width)
                     w = s % width
-                    if board[h-2][w] == 0:
-                        judge = True
-                        candidate.append(w)
+                    if h-2 >= 0:
+                        if board[h-2][w] == 0:
+                            judge = True
+                            candidate.append(w)
                 
                 if not judge:
                     return judge, None
                 
                 action = choice(candidate)
+                #print( a in valid)
                 return judge, action
         
         if policy == "h2lr":
@@ -1454,7 +1489,7 @@ class System(object):
             # compare both side on value
             action = self.detectAction(past_board, current_board)
             actions.append(action)
-            info["importance"] = self.getImportance(board, 1, path, step)
+            info["importance"] = self.getImportance(board, 1, path, step, importance=1)
          
             if sv - bv > threshold:
                 info["view"] = "too pessimistic"
@@ -1689,6 +1724,11 @@ class System(object):
         vstep = getStep(board) # countは差分で得られる
         counts = self.getPastCount(path, step, vboard, analist)
         #print(self.getPastValueNoModification( path, step, vboard, 1))
+        if self.game.getGameEnded(board, curPlayer):
+            #judge
+            return board, -1
+        
+        
         if analist == 1:
             if vs not in sVs.keys():
                 return None, None
@@ -1700,9 +1740,7 @@ class System(object):
         
         
        
-        if self.game.getGameEnded(board, curPlayer):
-            #judge
-            return board, -1
+        
         
         vplayer = curPlayer
     
@@ -2220,7 +2258,7 @@ class System(object):
                 return cv.astype(np.float32).tolist()[0]
         else:
             if s in bVs.keys():
-                print("in")
+                
                 if type(bVs[s]) == int:
                     return float(bVs[s]) 
                 elif type(bVs[s]) == np.ndarray:

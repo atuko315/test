@@ -18,7 +18,9 @@ from random import choice
 import bisect
 import torch
 import torch.nn as nn
+import ast
 from connectx_try import load_data, getStep, System, getCurrentPlayer
+import collections
 
 class DatasetManager(object):
     def __init__(self, game, path_set):
@@ -89,8 +91,38 @@ class DatasetManager(object):
             [0, 1, 0, 0, 5],
             [0, 0, 1, 0, 0],
             [5, 0, 0, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0],
+            [0,-1, 0],
+            [0, 1, 0],
+            [0, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0],
+            [0, 1, 0],
+            [0,-1, 0],
+            [0, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0, 0],
+            [0, 1,-1, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0],
+             [0,-1, 1, 0],
+             [0,-1, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0],
+             [0, 1, 1, 0],
+             [0,-1,-1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0],
+             [0, 1,-1, 0],
+             [0,-1, 1, 0]]
         )
-        
         ]
         self.board_set = []
     
@@ -362,13 +394,16 @@ class DatasetManager(object):
         #print(eboard)
         purepattern = pattern.copy()
         purepattern[abs(purepattern) != 1] = 0
+        purepattern[abs(purepattern) == 1] = 1
+        #print(purepattern)
         #どっちや？？
         for i in range(height + 1 - ph + 1):
             for j in range(width + 2 - pw + 1):
                 submatrix = eboard[i:i+ph, j:j+pw]
                 inverse = submatrix * -1
                 #print(submatrix)
-                if (submatrix * purepattern == purepattern).all() or (inverse * purepattern == purepattern).all():
+                #print(submatrix * purepattern)
+                if (submatrix * purepattern == pattern).all() or (inverse * purepattern == pattern).all():
                     #含まれてる
                     #if (i!=0 and board[i-1][j]==0):
                     #    contain_indices.append((i)*width+j)
@@ -648,26 +683,61 @@ class DatasetManager(object):
         
         return reach
     
-    def check_convergence(self, boards, reach, path, bstep, system, analist):
+    def check_convergence(self, boards, reach, path, bstep, system, analist, mode="analysis"):
         '''
         bcount, bfcount, bfdcount   の順 確率で出力
         あとでgroupを保持する版もつくる
         stepはbstep
         '''
+        if mode== "show":
+            gd = defaultdict(lambda: 0)
+            gs = defaultdict(lambda: 0)
         size = len(boards)
-        print(size)
+
+        if size < 1:
+            if mode == "show":
+                return [], []
+            return 0, 0, 0
+        #print(size)
         c=0
         bcount = 0
         bfcount = 0
         bfdcount = 0
 
         for b in boards:
-            print(f"{c}/{size}")
+            #print(f"{c}/{size}")
+            if mode == "show":
+                answer = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode=mode)
+                group, stones = answer
+                if group:
+                    for g in group:
+                        gd[str(g)] += 1
+
+                if stones:
+                    for s in stones:
+                        gs[s] += 1
+                
+                continue
+
+
+                
             c+=1
             bc, bf, bfd  = self.check_convergence_per_board(b, reach, path, bstep, system, analist)
             bcount += bc
             bfcount += bf
             bfdcount += bfd
+        
+        if mode == "show":
+            
+            height, width = self.game.getBoardSize()
+            visual = [0 if i not in collections.Counter(gs).keys() else collections.Counter(gs)[i]
+                        for i in range(height * width)]
+            visual = np.array(visual).reshape(height, width)
+            print(visual)
+            danger = max(gd, key=gd.get)
+            print(danger)
+
+            return gd, gs
         
         rate = bcount / size
         frate = bfcount / bcount if bcount > 0 else 0
@@ -676,29 +746,37 @@ class DatasetManager(object):
         return rate, frate, fdrate
 
     
-    def check_convergence_per_board(self, board, reach, path, bstep, system, analist):
+    def check_convergence_per_board(self, board, reach, path, bstep, system, analist, mode="analysis"):
         '''
         bcount, bfcount, bfdcount   の順
         あとでgroupを保持する版もつくる
+        show modeだとgroup と石を返します
         '''
         bcount = 0
         bfcount = 0
         bfdcount = 0
-        print(board)
+        #print(board)
         hot = system.detectHotState(board, analist, path, bstep, toend=True)
-        print(hot[0])
+        #print(hot[1])
         if hot[1] == None:
+            if mode == "show":
+                
+                return None, []
             return bcount, bfcount, bfdcount
         
         end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
         if end:
-            print("reach")
-            print(reach)
-            #print(hot[0])
+            #print("reach")
+            #print(reach)
+            
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
-            print("fatal")
-            print(fatal)
+            if mode == "show":
+                fu = np.unique(fatal.copy()).tolist() if fatal else []
+                #print(fatal, fu)
+                return fatal, fu
+            #print("fatal")
+            #print(fatal)
             fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
             if len(set(ru)) > 0:
@@ -718,6 +796,8 @@ class DatasetManager(object):
                 else:
                     fatal_group[gs] += 1
                 '''
+        if mode == "show":
+            return [], []
         return bcount, bfcount, bfdcount      
     
     
@@ -773,7 +853,7 @@ class DatasetManager(object):
         
             
     
-    def hot_states_one_way(self, board, path, system, analist, step, baseline=3):
+    def hot_states_one_way(self, board, path, system, analist, step, baseline=3, mode="analysis"):
         '''
         step分先のを集めてそこからはhotstatesつまり、step分先の盤面数
         path step の stepはbstep
@@ -782,7 +862,7 @@ class DatasetManager(object):
         '''
         assert step > 0
         reach = self.detect_actual_reach(path, system)
-        print(reach)
+        #print(reach)
         bstep = getStep(board)
     
         content = load_data(path)
@@ -792,8 +872,10 @@ class DatasetManager(object):
             imp, vboard, branch, fpath, importance = content
         
         boards = self.collect_promising(board, path, system, analist, step, baseline=baseline)
-        #print(boards)
         
+        if mode == "show":
+            gd, gs = self.check_convergence(boards, reach, fpath, bstep, system, analist, mode="show")
+            return gd, gs
         rate, frate, fdrate = self.check_convergence(boards, reach, fpath, bstep, system, analist)
 
         return rate, frate, fdrate
@@ -804,36 +886,46 @@ class DatasetManager(object):
         
 
     
-    def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, promising=3):
+    def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, promising=3, mode="compare"):
         '''
-        一手先読みのbaseline変えたいときはなんとか頑張ってください
+        一手先読みのbaseline変えたいときはpromising
+        modeをrandomにするとbaselineはランダムになる
         '''
+        #print("enter")
         content = load_data(path)
         if len(content) < 5:
             importance, vboard, brance, fpath = content
         else:
             imp, vboard, branch, fpath, importance = content
+
+        if mode == "ramdom":
+            baseline = choice([i for i in range(len(board[0]))])
         
         valid = system.game.getValidMoves(board, getCurrentPlayer(board))
         valid = [i  for i in range(len(valid)) if valid[i]]
         if len(valid) < baseline+1:
-            return None
+            # これもとりあえず最下位をわたしとく
+            baseline = len(valid) - 1
         
         reach = self.detect_actual_reach(path, system)
+        #print(reach)
         
         best = system.getImportantAction(board, analist, fpath, getStep(board), 0)
         second = system.getImportantAction(board, analist, fpath, getStep(board), baseline)
+        #print(best, second)
 
         best_board = self.add_stone(board.copy(), getCurrentPlayer(board), best)
         second_board = self.add_stone(board.copy(), getCurrentPlayer(board), second)
 
         brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist=analist, step=step, baseline=promising)
         srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist=analist, step=step, baseline=promising)
-
+        #print(brate, bfrate, bfdrate, srate, sfrate, sfdrate)
         return brate, bfrate, bfdrate, srate, sfrate, sfdrate
     
     def collect_two_ways(self, system, analist, step=3, baseline=1, promising=3):
         size = len(self.path_set)
+        #print(f"size: {size}")
+        #size = 0
         ave_brate = 0
         ave_bfrate = 0
         ave_bfdrate = 0
@@ -848,6 +940,10 @@ class DatasetManager(object):
                 importance, board, brance, fpath = content
             else:
                 imp, board, branch, fpath, importance = content
+
+            #if getStep(board) != analist:
+            #    continue
+            #size += 1
             
             brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, promising=promising)
             

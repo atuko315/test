@@ -30,13 +30,12 @@ weak_puct = 0.1
 sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timellimit,
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
-paths1 = sorted(Path('./label/important/important/middle').glob('*.board'))
-paths2 = sorted(Path('./label/important/trivial/middle').glob('*.board'))
-paths3 = sorted(Path('./label/trivial/important/middle').glob('*.board'))
-paths4 = sorted(Path('./label/trivial/trivial/middle').glob('*.board'))
+paths1 = sorted(Path('./label/important/important/long').glob('*.board'))
+paths2 = sorted(Path('./label/important/trivial/long').glob('*.board'))
+paths3 = sorted(Path('./label/trivial/important/long').glob('*.board'))
+paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))
 
 paths = [paths1, paths2, paths3, paths4]
-
 
 print(len(paths1), len(paths2), len(paths3), len(paths4))
 
@@ -51,15 +50,13 @@ baseline = 6
 promising = 2
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):
-    
-    #次の一手がどっちの手番かで分けるべき
-    #つまり相手の力量を打ちながら計る必要がある？？？？
-    
+    if i != 2:
+        continue
     
     dataset = DatasetManager(game, paths[i])
     
     total_size = len(paths[i])
     #print(f"total size: {total_size}")
-    ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    print(f"result: {i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate}")
+    ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate = dataset.collect_two_ways(sample_system, analist, step=1, baseline=1, promising=3)
+    print(f"result: {i+1},{ave_brate},{ave_bfrate}, {ave_bfdrate}, {ave_srate}, {ave_sfrate}, {ave_sfdrate}")
 

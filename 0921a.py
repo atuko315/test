@@ -30,22 +30,22 @@ game = Connect4Game()
 
 
     
-strong_timelimit = 0.01
-weak_timelimit = 0.5
-strong_puct = 0.01
-weak_puct = 0.1
+strong_timelimit = 0.005
+weak_timelimit = 0
+strong_puct = 0
+weak_puct = 0
 sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timelimit,
                     weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
-cycle = 30
+cycle = 200
 #cycle = 1
 results = []
 print("config")
 print(strong_timelimit, weak_timelimit, strong_puct, weak_puct, cycle)
 for i in range(cycle):
     turn = 1 if i % 2 == 0 else -1
-    result = sample_system.playGameWithPolicy(None, ["v2u"], turn) * turn
+    result = sample_system.playGameWithPolicy(None, ["v2u"], turn, verbose=False, reach=True) * turn
     results.append(result)
 
 
-print(results.count(1), results.count(0))
+print(results.count(1), results.count(-1))
 print(results)

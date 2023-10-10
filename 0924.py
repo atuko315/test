@@ -31,10 +31,10 @@ sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timeli
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 size1 = len(sorted(Path('./label/important/important/long').glob('*.board')))
 size4 = len(sorted(Path('./label/trivial/trivial/long').glob('*.board')))
-paths1 = sorted(Path('./label/important/important/long').glob('*.board'))[-size1: ]
+paths1 = sorted(Path('./label/important/important/long').glob('*.board'))
 paths2 = sorted(Path('./label/important/trivial/long').glob('*.board'))
 paths3 = sorted(Path('./label/trivial/important/long').glob('*.board'))
-paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))[-size4: ]
+paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))
 dataset1 = DatasetManager(game, paths1)
 dataset4 = DatasetManager(game, paths4)
 paths = [paths1, paths2, paths3, paths4]
@@ -47,7 +47,7 @@ analist = 1
 #print(len(paths2), len(paths3))
 print(len(paths1), len(paths2), len(paths3), len(paths4))
 
-for  i in range(len(paths)):
+for  i in range(2):
     dataset = DatasetManager(game, paths)
     result = []
     total_size = len(paths[i])
@@ -207,21 +207,21 @@ for  i in range(len(paths)):
                     end = game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
                     if end:
                         #print(hot[0])
-                        bcount += 1
+                        scount += 1
                         fatal = sample_system.detectFatalStone(hot[0], per_group=True)
                         #print("fatal")
                         #print(fatal)
                         fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
                         ru = np.unique(reach.copy()).tolist() if reach else [-2]
                         if len(set(ru)) > 0:
-                            bfdcount += (len(set(fu) & set(ru))) / 4
+                            sfdcount += (len(set(fu) & set(ru))) / 4
                         #print(fu, ru, len(set(fu) & set(ru)))
                         if fatal:
                             for g in fatal:
                                 for i in range(len(reach)):
                                     r = reach[i]
                                     if set(r).issubset(set(g)):
-                                        bfcount += 1
+                                        sfcount += 1
                             '''
                             gs = str(g)
                             #print(fatal_group.keys())
