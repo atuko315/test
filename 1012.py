@@ -39,23 +39,31 @@ paths = [paths1, paths2, paths3, paths4]
 
 
 print(len(paths1), len(paths2), len(paths3), len(paths4))
-
+'''
+dataset = DatasetManager(game, paths[0])
+path = sorted(Path('./label/important/important/middle').glob('*.board'))[1]
+content = load_data(path)
+imp, board, branch, fpath, importance = content
+print(dataset.hot_states_one_way(board, path, sample_system, 1, 3, 2, mode="focus"))
+'''
 #boards = dataset1.collect_promising(fboard, path, sample_system, analist, step=4, baseline=3)
 #print(boards)
-#print(dataset1.check_convergence(boards, reach, fpath, getStep(fboard), sample_system, analist))
+#print(dataset1.
+#vergence(boards, reach, fpath, getStep(fboard), sample_system, analist))
 
 
 analist = -1
 step = 3
 baseline = 6
 promising = 2
-print("手番修正版")
+print("middle")
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
-for  i in range(len(paths)):
-    
+for  i in range(len(paths)):    
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
-    ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
+    answer = dataset.collect_one_way(sample_system, analist, step=step, promising=promising, mode="focus")
+    ave_bfrate, ave_bfdrate, size = answer
+    print(f"{i+1} {ave_bfrate} {ave_bfdrate}")
+
 

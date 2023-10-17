@@ -93,6 +93,24 @@ class DatasetManager(object):
             [5, 0, 0, 1, 0]]
         ),
         np.array(
+            [[0, 0, 0, 0, 0],
+            [0,-1, 1, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0, 0],
+            [0, 1, 1, -1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0, 0, 0],
+            [0, 1,-1, 1, 0]]
+        ),
+        np.array(
+            [[0, 0, 0],
+            [0, 1, 0],
+            [0, 1, 0],
+            [0,-1, 0]]
+        ),
+        np.array(
             [[0, 0, 0],
             [0,-1, 0],
             [0, 1, 0],
@@ -688,14 +706,17 @@ class DatasetManager(object):
         bcount, bfcount, bfdcount   の順 確率で出力
         あとでgroupを保持する版もつくる
         stepはbstep
+
+        focus モードは　グループと石を集めて上位いくつかを 石は上位４つ、グループは上位3つ
         '''
-        if mode== "show":
+        
+        if mode== "show" or mode == "focus":
             gd = defaultdict(lambda: 0)
             gs = defaultdict(lambda: 0)
         size = len(boards)
 
         if size < 1:
-            if mode == "show":
+            if mode == "show" or mode == "focus":
                 return [], []
             return 0, 0, 0
         #print(size)
@@ -706,7 +727,7 @@ class DatasetManager(object):
 
         for b in boards:
             #print(f"{c}/{size}")
-            if mode == "show":
+            if mode == "show" or mode == "focus":
                 answer = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode=mode)
                 group, stones = answer
                 if group:
@@ -738,6 +759,44 @@ class DatasetManager(object):
             print(danger)
 
             return gd, gs
+        elif mode == "focus":
+            
+            gs_sorted = sorted(dict(gs).items(), reverse=True, key=lambda x : x[1])
+            
+            if len(gs_sorted) < 4:
+                gs4 = [gs_sorted[i][0] for i in range(len(gs_sorted))]
+            else:
+                gs4 = [gs_sorted[i][0] for i in range(4)]
+            
+            gd_sorted = sorted(dict(gd).items(), reverse=True, key=lambda x : x[1])
+            
+            if len(gd_sorted) < 2:
+                gd2 = [gd_sorted[i][0] for i in range(len(gd_sorted))]
+            else:
+                gd2 = [gd_sorted[i][0] for i in range(2)]
+            gd2 = [eval(g) for g in gd2]
+           
+            fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
+            ru = np.unique(reach.copy()).tolist() if reach else [-2]
+            bfdcount = 0
+            bfcount = 0
+            if len(set(ru)) > 0:
+                bfdcount = (len(set(fu) & set(ru))) / 4
+            #print(fu, ru, len(set(fu) & set(ru)))つくる
+            if gd2:
+                for g in gd2:
+                    for i in range(len(reach)):
+                        r = reach[i]
+                        if set(r).issubset(set(g)):
+                            bfcount = 1
+            
+            return bfcount, bfdcount
+
+
+
+
+
+
         
         rate = bcount / size
         frate = bfcount / bcount if bcount > 0 else 0
@@ -751,6 +810,7 @@ class DatasetManager(object):
         bcount, bfcount, bfdcount   の順
         あとでgroupを保持する版もつくる
         show modeだとgroup と石を返します
+        focus modeだと fatalを返す
         '''
         bcount = 0
         bfcount = 0
@@ -762,6 +822,8 @@ class DatasetManager(object):
             if mode == "show":
                 
                 return None, []
+            elif mode == "focus":
+                return None, None
             return bcount, bfcount, bfdcount
         
         end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
@@ -771,9 +833,8 @@ class DatasetManager(object):
             
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
-            if mode == "show":
+            if mode == "show" or mode == "focus":
                 fu = np.unique(fatal.copy()).tolist() if fatal else []
-                #print(fatal, fu)
                 return fatal, fu
             #print("fatal")
             #print(fatal)
@@ -798,6 +859,8 @@ class DatasetManager(object):
                 '''
         if mode == "show":
             return [], []
+        elif mode == "focus":
+            return bfcount, bfdcount
         return bcount, bfcount, bfdcount      
     
     
@@ -814,7 +877,8 @@ class DatasetManager(object):
             imp, fboard, branch, fpath, importance = content
         
         max_step = len(load_data(fpath))  - 2
-        
+        if analist == 0:
+            analist = getCurrentPlayer(board)
         valid = self.game.getValidMoves(board, getCurrentPlayer(board))
         valid = [i  for i in range(len(valid)) if valid[i]]
         l = len(valid) if len(valid) < baseline else baseline
@@ -830,7 +894,7 @@ class DatasetManager(object):
 
         for c in counts:
                 fboards.append(system.add_stone(board.copy(), getCurrentPlayer(board), c))
-        
+    
         return fboards
     
     def collect_promising(self, board, path, system, analist, step, baseline=3):
@@ -876,16 +940,14 @@ class DatasetManager(object):
         if mode == "show":
             gd, gs = self.check_convergence(boards, reach, fpath, bstep, system, analist, mode="show")
             return gd, gs
+        elif mode == "focus":
+            bfcount, bfdcount = self.check_convergence(boards, reach, fpath, bstep, system, analist, mode="focus")
+            return bfcount, bfdcount
+
         rate, frate, fdrate = self.check_convergence(boards, reach, fpath, bstep, system, analist)
 
         return rate, frate, fdrate
 
-        
-
-
-        
-
-    
     def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, promising=3, mode="compare"):
         '''
         一手先読みのbaseline変えたいときはpromising
@@ -917,15 +979,15 @@ class DatasetManager(object):
         best_board = self.add_stone(board.copy(), getCurrentPlayer(board), best)
         second_board = self.add_stone(board.copy(), getCurrentPlayer(board), second)
 
-        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist=analist, step=step, baseline=promising)
-        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist=analist, step=step, baseline=promising)
+        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist, step=step, baseline=promising)
+        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist, step=step, baseline=promising)
         #print(brate, bfrate, bfdrate, srate, sfrate, sfdrate)
         return brate, bfrate, bfdrate, srate, sfrate, sfdrate
     
     def collect_two_ways(self, system, analist, step=3, baseline=1, promising=3):
-        size = len(self.path_set)
+        #size = len(self.path_set)
         #print(f"size: {size}")
-        #size = 0
+        size = 0
         ave_brate = 0
         ave_bfrate = 0
         ave_bfdrate = 0
@@ -941,9 +1003,10 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            #if getStep(board) != analist:
-            #    continue
-            #size += 1
+            
+            if getCurrentPlayer(board) != analist:
+                continue
+            size += 1
             
             brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, promising=promising)
             
@@ -954,10 +1017,70 @@ class DatasetManager(object):
             ave_sfrate += sfrate
             ave_sfdrate += sfdrate
         
+        if size == 0:
+            return 0, 0, 0, 0, 0, 0, 0
+        
         ave_brate /= size
         ave_bfrate /= size
         ave_bfdrate /= size
         ave_srate /= size
         ave_sfrate /= size
         ave_sfdrate /= size
-        return ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate
+        return ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size
+
+    def collect_one_way(self, system, analist, step=3, promising=3, mode="analysis"):
+            '''
+            こっちはfocusあり
+            '''
+            #size = len(self.path_set)
+            #print(f"size: {size}")
+            size = 0
+            ave_brate = 0
+            ave_bfrate = 0
+            ave_bfdrate = 0
+
+            
+            for p in self.path_set:
+                content = load_data(p)
+                if len(content) < 5:
+                    importance, board, brance, fpath = content
+                else:
+                    imp, board, branch, fpath, importance = content
+
+                if getStep(board) < 15 or getStep(board) > 20:
+                    continue
+                #if abs(analist) == 1:
+                #    if getCurrentPlayer(board) != analist:
+                #        continue
+
+                size += 1
+                if mode == "focus":
+                    bfcount, bfdcount = self.hot_states_one_way(board, p, system, analist, step=step, baseline=promising, mode="focus")
+                    ave_bfrate += bfcount
+                    ave_bfdrate += bfdcount
+                    continue
+
+                
+                brate, bfrate, bfdrate = self.hot_states_one_way(board, p, system, analist, step=step, baseline=promising)
+                ave_brate += brate
+                ave_bfrate += bfrate
+                ave_bfdrate += bfdrate
+                
+            
+            if size == 0:
+                if mode == "focus":
+                    
+                    return 0, 0
+                return 0, 0, 0
+            
+            ave_brate /= size
+            ave_bfrate /= size
+            ave_bfdrate /= size
+            if mode == "focus":
+                print(f"size: {size}")
+                return ave_bfrate, ave_bfdrate, size
+            
+            return ave_brate, ave_bfrate, ave_bfdrate
+
+
+

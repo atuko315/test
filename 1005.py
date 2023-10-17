@@ -29,10 +29,12 @@ sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timeli
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
 
-paths1 = sorted(Path('./label/important/important/long').glob('*.board'))
-paths2 = sorted(Path('./label/important/trivial/long').glob('*.board'))
-paths3 = sorted(Path('./label/trivial/important/long').glob('*.board'))
-paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))
+paths1 = sorted(Path('./label/important/important/middle').glob('*.board'))
+paths2 = sorted(Path('./label/important/trivial/middle').glob('*.board'))
+paths3 = sorted(Path('./label/trivial/important/middle').glob('*.board'))
+paths4 = sorted(Path('./label/trivial/trivial/middle').glob('*.board'))
+
+print(f"original: {len(paths1)}, {len(paths2)}, {len(paths3)}, {len(paths4)}")
 dataset1 = DatasetManager(game, paths1)
 dataset2 = DatasetManager(game, paths2)
 dataset3 = DatasetManager(game, paths3)
@@ -50,10 +52,10 @@ board1 = np.array(
  [ 0, 0, 0,-1,-1,-1,-1],
  [ 0,-1, 1, 1, 1,-1, 1],
  [ 0,-1, 1, 1,-1, 1,-1]], dtype=np.int32)
-for i in range(5):
-    size1 = len(dataset1.make_pattern_set(dataset1.pattern_set[-(i+1)]))
-    size2 = len(dataset2.make_pattern_set(dataset1.pattern_set[-(i+1)]))
-    size3 = len(dataset3.make_pattern_set(dataset1.pattern_set[-(i+1)]))
-    size4 = len(dataset4.make_pattern_set(dataset1.pattern_set[-(i+1)]))
+for i in range(3):
+    size1 = len(dataset1.make_pattern_set(dataset1.pattern_set[-(i+8)])) / len(paths1)
+    size2 = len(dataset2.make_pattern_set(dataset1.pattern_set[-(i+8)])) / len(paths2)
+    size3 = len(dataset3.make_pattern_set(dataset1.pattern_set[-(i+8)])) / len(paths3)
+    size4 = len(dataset4.make_pattern_set(dataset1.pattern_set[-(i+8)])) / len(paths4)
     print(f"{i+1}, {size1}, {size2}, {size3}, {size4}")
     

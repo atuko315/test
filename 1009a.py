@@ -45,20 +45,22 @@ for i in range(len(paths)):
     dataset = DatasetManager(game, paths[i])
     dataset.make_board_set()
     pattern_paths = dataset.make_pattern_path_set(dataset.pattern_set[1])
+    print(len(pattern_paths))
     pdataset = DatasetManager(game, pattern_paths)
     for p in pdataset.path_set:
         content = load_data(p)
         imp, board, branch, fpath, importance = content
         contain_indices, pure_indices = pdataset.match_pattern(board, dataset.pattern_set[1])
         for c in contain_indices:
-            h = int(c/width)
+            h = int(c/width) - 1
             w = c % width
             '''
             if h > 0:
                 record[c-width] += 1
             '''
-            
-            record[c] += 1
+
+            record[c-width] += 1
+            record[c-width+1] += 1
     
     visual = [0 if i not in collections.Counter(record).keys() else collections.Counter(record)[i]
                 for i in range(height * width)]
@@ -71,7 +73,7 @@ for i in range(len(paths)):
     #print(np.sum(visual, axis=1)) #行ごと
     #print(visual)
 
-#print(datas)
+print(datas)
 for i in range(len(datas[0])):
     print(f"{i} {datas[0][i]} {datas[1][i]} {datas[2][i]} {datas[3][i]}")
 

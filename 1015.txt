@@ -1,0 +1,133 @@
+[10-15 21:37:17 MainThread @logger.py:242] Argv: 1012.py
+[10-15 21:37:19 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-15 21:37:19 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+5 2 132 177
+long 手番修正
+analist: 1, step: 3, baseline: 6, promising: 2
+answer
+(0.0, 0.0)
+1 0.0 0.0
+answer
+(0.5, 0.625)
+2 0.5 0.625
+answer
+(0.4166666666666667, 0.5416666666666666)
+3 0.4166666666666667 0.5416666666666666
+answer
+(0.5741935483870968, 0.6064516129032258)
+4 0.5741935483870968 0.6064516129032258
+
+middle 手番修正版
+
+[10-16 10:30:31 MainThread @logger.py:242] Argv: 1012.py
+[10-16 10:30:33 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-16 10:30:33 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 1, step: 3, baseline: 6, promising: 2
+1 0.3684210526315789 0.5526315789473685
+2 0.125 0.46875
+3 0.3448275862068966 0.4827586206896552
+4 0.34285714285714286 0.4
+[10-16 14:35:17 MainThread @logger.py:242] Argv: 1012.py
+[10-16 14:35:19 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-16 14:35:19 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 0, step: 3, baseline: 6, promising: 2
+1 0.03333333333333333 0.041666666666666664
+2 0.0 0.05555555555555555
+3 0.05851063829787234 0.11835106382978723
+4 0.07575757575757576 0.13636363636363635
+
+手番修正ナシ[10-16 17:16:54 MainThread @logger.py:242] Argv: 1012.py
+[10-16 17:16:56 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-16 17:16:56 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 1, step: 3, baseline: 6, promising: 2
+1 0.3 0.45
+2 0.1111111111111111 0.4444444444444444
+3 0.4095744680851064 0.4933510638297872
+4 0.3333333333333333 0.4772727272727273
+[10-17 10:24:01 MainThread @logger.py:242] Argv: 1012.py
+[10-17 10:24:03 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-17 10:24:03 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 1, step: 2, baseline: 6, promising: 2
+Traceback (most recent call last):
+  File "1012.py", line 65, in <module>
+    answer = dataset.collect_one_way(sample_system, analist, step=step, promising=promising, mode="focus")
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 1058, in collect_one_way
+    bfcount, bfdcount = self.hot_states_one_way(board, p, system, analist, step=step, baseline=promising, mode="focus")
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 944, in hot_states_one_way
+    bfcount, bfdcount = self.check_convergence(boards, reach, fpath, bstep, system, analist, mode="focus")
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 731, in check_convergence
+    answer = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode=mode)
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 819, in check_convergence_per_board
+    hot = system.detectHotState(board, analist, path, bstep, toend=True)
+  File "/home/student/PARL/benchmark/torch/AlphaZero/connectx_try.py", line 1815, in detectHotState
+    action = np.argmax(self.getPastActionProb(path, step, vboard, 
+  File "/home/student/PARL/benchmark/torch/AlphaZero/connectx_try.py", line 2335, in getPastActionProb
+    h = load_data(path)
+  File "/home/student/PARL/benchmark/torch/AlphaZero/connectx_try.py", line 59, in load_data
+    return pickle.load(f)
+KeyboardInterrupt
+[10-17 13:06:30 MainThread @logger.py:242] Argv: 1012.py
+[10-17 13:06:32 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-17 13:06:32 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 1, step: 2, baseline: 6, promising: 2
+size: 9
+1 0.2222222222222222 0.5
+size: 2
+2 0.0 0.625
+size: 99
+3 0.5050505050505051 0.5858585858585859
+size: 32
+4 0.3125 0.5546875
+[10-17 16:41:51 MainThread @logger.py:242] Argv: 1012.py
+[10-17 16:41:53 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-17 16:41:53 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+middle
+analist: 1, step: 2, baseline: 6, promising: 3
+size: 9
+1 0.2222222222222222 0.5
+size: 2
+2 0.5 0.75
+size: 99
+3 0.494949494949495 0.5631313131313131
+size: 32
+4 0.40625 0.5234375
+
+30 9 188 66
+middle
+analist: 1, step: 3, baseline: 6, promising: 2
+size: 9
+1 0.3333333333333333 0.5277777777777778
+size: 2
+2 0.0 0.625
+size: 99
+3 0.5656565656565656 0.5883838383838383
+size: 32
+4 0.375 0.578125
+[10-17 21:21:52 MainThread @logger.py:242] Argv: 1012.py
+[10-17 21:21:54 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[10-17 21:21:54 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.

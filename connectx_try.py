@@ -464,7 +464,7 @@ class System(object):
         
         return self.remove_stone(board.copy(), player, a), a
 
-    def add_stone(self, board, player, column):
+    def add_stone(self, board, player, column, number=False):
         "Create copy of board containing new stone."
 
         height, width = self.game.getBoardSize()
@@ -474,6 +474,9 @@ class System(object):
                 "Can't play column %s on board %s" % (column, self))
 
         board[available_idx[0][len(available_idx[0])-1]][column] = player
+
+        if number:
+            return board, available_idx[0][len(available_idx[0])-1]*width+column
         return board
 
     def add_random_stone(self, board, player, ex=-1):
@@ -994,6 +997,53 @@ class System(object):
         self.b_mcts.Es = {}  # stores game.getGameEnded ended for board s
         self.b_mcts.Vs = {} 
         self.b_mcts.V = {}
+    
+    def estimate_params(self, path, analist=1):
+        #puctの推定は難しいので秒数を予測
+        elimit = 5
+        h = load_data(path)
+        self.turn = h[len(h)-1][0] #変える時は変えてください
+        
+        self.reset_mcts()
+        mcts_players = [self.s_mcts, None, self.b_mcts] if self.turn != -1 else [self.b_mcts, None, self.s_mcts]
+        curPlayer = 1
+        pboard = None
+        for step in range(len(h)-1):
+            if self.turn == curPlayer or step == 0:
+                board, sNsa, bNsa, sv, bv, sVs, bVs = h[step]
+                pboard = board
+                continue
+
+            pcanonicalBoard = self.game.getCanonicalForm(pboard, getCurrentPlayer(pboard))
+            ps = self.game.stringRepresentation(pcanonicalBoard)
+            counts = self.getPastCount(path, getStep(pboard), analist)
+            valids = self.game.getValidMoves(pboard, getCurrentPlayer(pboard))
+            ranking = np.argsort(counts)
+            ranking = ranking[::-1]
+            valids = [i  for i in range(len(valids)) if valids[i]]
+            if len(valids) < number+1:
+                number = len(valids) - 1 # とりあえず最下位を渡す
+            ranking = [i for i in ranking if i in valids]
+            oa = self.detectAction(pboard, board)
+
+            if oa not in ranking:
+                elimit = 0
+            
+            orank = ranking.index(oa)
+            crange = len(ranking)
+
+            pvalue = self.getPastValueNoModification(path, getStep(pboard), pboard, analist)
+            cvalue = -self.getPastValueNoModification(path, getStep(board), board, analist)
+            #相手側からの視点だからー
+            vboard = self.add_stone(board.copy(), getCurrentPlayer(board), ranking[0])
+            vvalue = -self.getPastValueNoModification(path, getStep(vboard), vboard, analist)
+            
+            # ここで基準を
+            criterion = orank * (vvalue - cvalue)
+            #一回自分自身がどうなるのかをみるべき
+            pboard = board
+
+
     def train_offline(self, path, dual=False):
         h = load_data(path)
         self.turn = h[len(h)-1][0] #変える時は変えてください
@@ -1002,7 +1052,7 @@ class System(object):
         mcts_players = [self.s_mcts, None, self.b_mcts] if self.turn != -1 else [self.b_mcts, None, self.s_mcts]
         curPlayer = 1
         for step in range(len(h)-1):
-            print(step)
+            #print(step)
             tmp = []
             board, sNsa, bNsa, sv, bv, sVs, bVs = h[step]
             tmp.append(board)
@@ -1704,6 +1754,8 @@ class System(object):
         limit: defaultは100(制限なし)
         toendがTrueだとjudgeで最後までいく
         '''
+        zflag = True if analist == 0 else False
+
         #print(board)
         #print(type(board))
         h = load_data(path)
@@ -1722,6 +1774,8 @@ class System(object):
         
         
         vstep = getStep(board) # countは差分で得られる
+        if zflag:
+            analist = getCurrentPlayer(board)
         counts = self.getPastCount(path, step, vboard, analist)
         #print(self.getPastValueNoModification( path, step, vboard, 1))
         if self.game.getGameEnded(board, curPlayer):
@@ -1745,7 +1799,9 @@ class System(object):
         vplayer = curPlayer
     
         while True:
-            
+            if zflag:
+                analist = vplayer
+
             #print(vboard)
             #print(vvalue)
             #print("--------")
