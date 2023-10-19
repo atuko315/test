@@ -358,11 +358,12 @@ class System(object):
             h = load_data(path)
             self.turn = h[len(h)-1][0]
             boards = [h[step][0] for step in range(len(h)-1)]
-            step = context_length
+            step = 0
             while step + context_length < len(h) -1:
                 print("step: ", step)
                 board = boards[step]
                 print(board)
+
                 importance = self.getImportance(board, analist, path, step, baseline=1)
                 print(importance)
                 branch = boards[step-context_length: step+context_length+1]
@@ -385,7 +386,71 @@ class System(object):
         
         summary = [summary[x][1] for x in range(len(summary))]
         return summary
+    
+    def myHighlights(self, datas, dirname="label", context_length=0, minimum_gap=0, 
+                   budget=5, sthreshold=0.6, wthreshold=0.13, short=10, middle=20):
+        '''
+        [0.0030262592179335, 0.12491765714907145, 0.31279777024276917]
+        [0.0012928681478933393, 0.1464111499397758, 0.17491868566599517]
+        0.0030262592179335と0.17491868566599517を採用
+        0.004 と0.18
+        context_length, minimum_gapを０にすると普通のラベリングになる
+        short, middleはもうちょい考えるぞ
+        '''
+        summary = [] # importance の昇順
+        #mctsは後で考える
+        min_importance = 0
+        for sim_number in range(len(datas)):
+            path = datas[sim_number]
+            h = load_data(path)
+            self.turn = h[len(h)-1][0]
+            boards = [h[step][0] for step in range(len(h)-1)]
+            step = 0
+            while step + context_length < len(h) -1:
+                save_path = dirname
+                print("step: ", step)
+                board = boards[step]
+                print(board)
+
+                simp = self.getMyImportance(board, 1, path, step)
+                wimp = self.getMyImportance(board, -1, path, step)
+                branch = boards[step-context_length: step+context_length+1]
+                sample = (simp, board, branch, path, wimp)
+
+                if simp > sthreshold:
+                    save_path = os.path.join(save_path, "important")
+                else:
+                    save_path = os.path.join(save_path, "trivial")
+
+                if wimp > wthreshold:
+                    save_path = os.path.join(save_path, "important")
+                else:
+                    save_path = os.path.join(save_path, "trivial")
+                
+                if step < short:
+                    save_path = os.path.join(save_path, "short")
+                elif step < middle:
+                    save_path = os.path.join(save_path, "middle")
+                else:
+                    save_path = os.path.join(save_path, "long")
+
+                store_data(sample, save_path)  
+                # trajはsimp優先で  
+                if simp > min_importance or len(summary) <= budget:
+                    #branch = boards[step-context_length: step+context_length+1]
+                    if len(summary) == budget:
+                        branch = branch[1: ]
+                    summary.append((simp, wimp, branch))
+                    step += minimum_gap + context_length
+                else:
+                    step += 1
+
+                summary.sort(key = lambda x: x[0])
+                min_importance = summary[-1][0]
         
+        summary = [summary[x][1] for x in range(len(summary))]
+        return summary
+    
     def getDifference(self, pboard, cboard):
         #単純に何個違うか
         pboard = np.array(pboard).reshape(1, -1)
@@ -1815,7 +1880,7 @@ class System(object):
             action = np.argmax(self.getPastActionProb(path, step, vboard, 
                                                       analist, counts = counts))
                 
-            while valids[action] == 0:
+            if valids[action] == 0:
                 return vboard, None
             
             if sum(counts) == 0:

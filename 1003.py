@@ -56,6 +56,8 @@ for  i in range(len(paths)):
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
-    ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
+    #ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
+    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+    print(f"{i+1} {bfcount} {bfdcount} {sfcount} {sfdcount} {size}")
+    #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

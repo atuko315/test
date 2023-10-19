@@ -29,10 +29,10 @@ sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timeli
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
 
-paths1 = sorted(Path('./label/important/important/middle').glob('*.board'))
-paths2 = sorted(Path('./label/important/trivial/middle').glob('*.board'))
-paths3 = sorted(Path('./label/trivial/important/middle').glob('*.board'))
-paths4 = sorted(Path('./label/trivial/trivial/middle').glob('*.board'))
+paths1 = sorted(Path('./label/important/important/long').glob('*.board'))
+paths2 = sorted(Path('./label/important/trivial/long').glob('*.board'))
+paths3 = sorted(Path('./label/trivial/important/long').glob('*.board'))
+paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))
 
 print(f"original: {len(paths1)}, {len(paths2)}, {len(paths3)}, {len(paths4)}")
 dataset1 = DatasetManager(game, paths1)
@@ -52,6 +52,16 @@ board1 = np.array(
  [ 0, 0, 0,-1,-1,-1,-1],
  [ 0,-1, 1, 1, 1,-1, 1],
  [ 0,-1, 1, 1,-1, 1,-1]], dtype=np.int32)
+
+pattern_path_set = dataset3.make_pattern_path_set(dataset3.pattern_set[0])
+path = pattern_path_set[1]
+content = load_data(path)
+imp, board, branch, fpath, importance = content
+dataset = DatasetManager(game, pattern_path_set)
+#traj = dataset1.collect_pattern_vector(dataset.pattern_set[0], sample_system, 1)
+print(dataset.hot_states_two_ways(board, path, sample_system, analist=1, step=3, baseline=6, promising=2, mode="focus"))
+
+'''
 for i in range(4):
     paths = paths[i]
     dataset = DatasetManager(game, paths)
@@ -59,3 +69,4 @@ for i in range(4):
     pattern_path_set = dataset.make_pattern_path_set(dataset.pattern_set[0])
     #一旦その時点からベクトルをあつめる
     pattern_dataset = DatasetManager(game, pattern_path_set)
+'''

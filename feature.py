@@ -676,6 +676,169 @@ class DatasetManager(object):
         
         return data
     
+    def detect_relative_distance(self, pa, ca):
+        '''
+        左から-1, 0, 1
+        '''
+        l = 0
+        if ca < pa:
+            l = -1
+        elif ca > pa:
+            l = 1
+        
+        return (l, abs(pa-ca))
+    
+    def detect_relative_traj(self, board,  key_c, path, system, analist, step=5):
+
+        traj = []
+        height, width = self.game.getBoardSize()
+        content = load_data(path)
+        if len(content) < 5:
+            importance, board, brance, fpath = content
+        else:
+            imp, board, branch, fpath, importance = content
+        
+        bstep = getStep(board)
+        zflag = True if analist == 0 else False
+        fcontent = load_data(fpath)
+        system.turn = fcontent[len(fcontent)-1][0]
+        tmp = fcontent[bstep] # 注目する部分
+        tboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
+        curPlayer = getCurrentPlayer(board)
+        
+        
+        vboard = board.copy()
+        vcanonicalBoard = self.game.getCanonicalForm(vboard, curPlayer)
+        vs = self.game.stringRepresentation(vcanonicalBoard)
+        
+        vstep = bstep # countは差分で得られる
+        print(board)
+        print(bstep)
+        if zflag:
+            analist = getCurrentPlayer(board)
+        counts = system.getPastCount(fpath, bstep, vboard, analist)
+        #print(self.getPastValueNoModification( path, step, vboard, 1))
+        if self.game.getGameEnded(board, curPlayer):
+           return traj
+            
+        
+        if analist == 1:
+            if vs not in sVs.keys():
+                return traj
+        else:
+            if vs not in bVs.keys():
+                return traj
+        
+        
+        vplayer = curPlayer
+    
+        for i in range(step):
+            if zflag:
+                analist = vplayer
+
+            #print(vboard)
+            #print(vvalue)
+            #print("--------")
+        
+            valids = self.game.getValidMoves(vboard, vplayer)
+            counts = system.getPastCount(fpath, bstep, vboard, analist)
+            action = np.argmax(system.getPastActionProb(fpath, bstep, vboard, 
+                                                    analist, counts = counts))
+            print(action)
+            if valids[action] == 0 or sum(counts) == 0:
+                return traj
+            #手を抽象化する
+            
+            traj.append(self.detect_relative_distance(key_c, action))
+            vnextBoard, vplayer = self.game.getNextState(vboard, vplayer, action)
+            vcanonicalBoard = self.game.getCanonicalForm(vboard, -vplayer)
+            vs = self.game.stringRepresentation(vcanonicalBoard)
+        
+            vstep += 1
+            if analist == 1:
+                if vs not in sVs.keys():
+                    return traj
+            else:
+                if vs not in bVs.keys():
+                    return traj
+        
+            if self.game.getGameEnded(vnextBoard, vplayer):
+                # end
+                return traj
+            
+            vboard = vnextBoard
+            print(vboard)
+
+        print(traj)   
+        
+        return traj
+    
+
+
+    
+    def collect_pattern_vector(self, pattern, system, analist, step=5, mode="contain"):
+        '''
+        左から1, 2, 3
+        基本的にpatternがあるやつだけにして
+        '''
+        size = 0
+        height, width = self.game.getBoardSize()
+        traj_set = []
+        for path in self.path_set:
+            tmp_traj = self.detect_pattern_vector(pattern, path, system, analist, step=step, mode=mode)
+            traj_set.append(tmp_traj)
+        return traj_set
+
+
+
+
+    
+    def detect_pattern_vector(self, pattern, path, system, analist, step=5, mode="contain"):
+        '''
+        traj
+        パターン複数の場合も気にせずにやっとるので
+        '''
+        traj = []
+        height, width = self.game.getBoardSize()
+        content = load_data(path)
+        if len(content) < 5:
+            importance, board, brance, fpath = content
+        else:
+            imp, board, branch, fpath, importance = content
+        
+        contain_indices, pure_indices = self.match_pattern(board, pattern)
+
+        for c in contain_indices:
+            #c複数の場合
+            key_w = int(c/width)
+            key_c = c % width
+            tmp_traj = self.detect_relative_traj(board, key_c, path, system, analist=analist, step=step)
+            traj.append(tmp_traj)
+
+        
+        
+        return traj
+    
+
+
+    
+    def collect_pattern_vector(self, pattern, system, analist, step=5, mode="contain"):
+        '''
+        左から1, 2, 3
+        基本的にpatternがあるやつだけにして
+        '''
+        size = 0
+        height, width = self.game.getBoardSize()
+        traj_set = []
+        for path in self.path_set:
+            tmp_traj = self.detect_pattern_vector(pattern, path, system, analist, step=step, mode=mode)
+            traj_set.append(tmp_traj)
+        return traj_set
+
+                
+
+            
+    
     def detect_actual_reach(self, path, system):
         content = load_data(path)
         
@@ -760,6 +923,11 @@ class DatasetManager(object):
 
             return gd, gs
         elif mode == "focus":
+            height, width = self.game.getBoardSize()
+            visual = [0 if i not in collections.Counter(gs).keys() else collections.Counter(gs)[i]
+                        for i in range(height * width)]
+            visual = np.array(visual).reshape(height, width)
+            print(visual)
             
             gs_sorted = sorted(dict(gs).items(), reverse=True, key=lambda x : x[1])
             
@@ -775,7 +943,7 @@ class DatasetManager(object):
             else:
                 gd2 = [gd_sorted[i][0] for i in range(2)]
             gd2 = [eval(g) for g in gd2]
-           
+            print(gd2)
             fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
             bfdcount = 0
@@ -869,7 +1037,7 @@ class DatasetManager(object):
         
 
     
-    def collect_promising_per_step(self, board, path, system, analist, baseline=3):
+    def collect_promising_per_step(self, board, path, system, analist, baseline=3, fix=-1):
         content = load_data(path)
         if len(content) < 5:
             importance, fboard, brance, fpath = content
@@ -885,6 +1053,8 @@ class DatasetManager(object):
         #print(fpath, getStep(board))
         bstep = getStep(board)
         bstep = max_step if bstep > max_step else bstep
+        if fix != -1:
+            bstep = fix
         
         counts = system.getPastCount(fpath, bstep, board, analist)
         counts = np.argsort(np.array(counts))
@@ -897,17 +1067,17 @@ class DatasetManager(object):
     
         return fboards
     
-    def collect_promising(self, board, path, system, analist, step, baseline=3):
+    def collect_promising(self, board, path, system, analist, step, baseline=3, fix=-1):
         #print("start")
         #print(board)
         assert step > 0
         boards = []
-        boards = self.collect_promising_per_step(board.copy(), path, system, analist, baseline=baseline)
+        boards = self.collect_promising_per_step(board.copy(), path, system, analist, baseline=baseline, fix=fix)
         if step == 1:
             return boards
         result = []
         for b in boards:
-            tmp = self.collect_promising(b.copy(), path, system, analist, step-1, baseline=baseline)
+            tmp = self.collect_promising(b.copy(), path, system, analist, step-1, baseline=baseline, fix=fix)
             
             if len(tmp) > 0:
                 result.extend(tmp)
@@ -917,7 +1087,7 @@ class DatasetManager(object):
         
             
     
-    def hot_states_one_way(self, board, path, system, analist, step, baseline=3, mode="analysis"):
+    def hot_states_one_way(self, board, path, system, analist, step, baseline=3, mode="analysis", fix=-1):
         '''
         step分先のを集めてそこからはhotstatesつまり、step分先の盤面数
         path step の stepはbstep
@@ -928,6 +1098,8 @@ class DatasetManager(object):
         reach = self.detect_actual_reach(path, system)
         #print(reach)
         bstep = getStep(board)
+        if fix != -1:
+            bstep = fix
     
         content = load_data(path)
         if len(content) < 5:
@@ -935,7 +1107,7 @@ class DatasetManager(object):
         else:
             imp, vboard, branch, fpath, importance = content
         
-        boards = self.collect_promising(board, path, system, analist, step, baseline=baseline)
+        boards = self.collect_promising(board, path, system, analist, step, baseline=baseline, fix = bstep)
         
         if mode == "show":
             gd, gs = self.check_convergence(boards, reach, fpath, bstep, system, analist, mode="show")
@@ -946,14 +1118,17 @@ class DatasetManager(object):
 
         rate, frate, fdrate = self.check_convergence(boards, reach, fpath, bstep, system, analist)
 
+
         return rate, frate, fdrate
 
     def hot_states_two_ways(self, board, path, system, analist, step, baseline=1, promising=3, mode="compare"):
         '''
         一手先読みのbaseline変えたいときはpromising
         modeをrandomにするとbaselineはランダムになる
+        今いじってるからきをつけろ
         '''
-        #print("enter")
+        print(board)
+
         content = load_data(path)
         if len(content) < 5:
             importance, vboard, brance, fpath = content
@@ -963,6 +1138,7 @@ class DatasetManager(object):
         if mode == "ramdom":
             baseline = choice([i for i in range(len(board[0]))])
         
+        bstep = getStep(board)
         valid = system.game.getValidMoves(board, getCurrentPlayer(board))
         valid = [i  for i in range(len(valid)) if valid[i]]
         if len(valid) < baseline+1:
@@ -970,7 +1146,7 @@ class DatasetManager(object):
             baseline = len(valid) - 1
         
         reach = self.detect_actual_reach(path, system)
-        #print(reach)
+        print(reach)
         
         best = system.getImportantAction(board, analist, fpath, getStep(board), 0)
         second = system.getImportantAction(board, analist, fpath, getStep(board), baseline)
@@ -979,12 +1155,19 @@ class DatasetManager(object):
         best_board = self.add_stone(board.copy(), getCurrentPlayer(board), best)
         second_board = self.add_stone(board.copy(), getCurrentPlayer(board), second)
 
-        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist, step=step, baseline=promising)
-        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist, step=step, baseline=promising)
+        if mode == "focus":
+            bfcount, bfdcount = self.hot_states_one_way(best_board, path, system, analist, step=step, baseline=promising, fix=bstep, mode="focus")
+            sfcount, sfdcount = self.hot_states_one_way(second_board, path, system, analist, step=step, baseline=promising, fix=bstep, mode="focus")
+            return bfcount, bfdcount, sfcount, sfdcount
+
+
+        brate, bfrate, bfdrate = self.hot_states_one_way(best_board, path, system, analist, step=step, baseline=promising, fix=bstep)
+        srate, sfrate, sfdrate = self.hot_states_one_way(second_board, path, system, analist, step=step, baseline=promising,fix=bstep)
         #print(brate, bfrate, bfdrate, srate, sfrate, sfdrate)
+        print("*****************************************")
         return brate, bfrate, bfdrate, srate, sfrate, sfdrate
     
-    def collect_two_ways(self, system, analist, step=3, baseline=1, promising=3):
+    def collect_two_ways(self, system, analist, step=3, baseline=1, promising=3,mode="compare"):
         #size = len(self.path_set)
         #print(f"size: {size}")
         size = 0
@@ -1004,12 +1187,22 @@ class DatasetManager(object):
                 imp, board, branch, fpath, importance = content
 
             
-            if getCurrentPlayer(board) != analist:
-                continue
+            #if getCurrentPlayer(board) != analist:
+            #    continue
+            if getStep(board) < 15 or getStep(board) > 20:
+                    continue
             size += 1
             
+            if mode == "focus":
+                bfcount, bfdcount, sfcount, sfdcount = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+                ave_bfrate += bfcount
+                ave_bfdrate += bfdcount
+                ave_sfrate += sfcount
+                ave_sfdrate += sfdcount
+                continue
             brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways(board, p, system, analist, step=step, baseline=baseline, promising=promising)
             
+
             ave_brate += brate
             ave_bfrate += bfrate
             ave_bfdrate += bfdrate
@@ -1018,6 +1211,8 @@ class DatasetManager(object):
             ave_sfdrate += sfdrate
         
         if size == 0:
+            if mode == "focus":
+                return 0, 0, 0, 0, 0
             return 0, 0, 0, 0, 0, 0, 0
         
         ave_brate /= size
@@ -1026,6 +1221,8 @@ class DatasetManager(object):
         ave_srate /= size
         ave_sfrate /= size
         ave_sfdrate /= size
+        if mode == "focus":
+            return ave_bfrate, ave_bfdrate, ave_sfrate, ave_sfdrate, size
         return ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size
 
     def collect_one_way(self, system, analist, step=3, promising=3, mode="analysis"):

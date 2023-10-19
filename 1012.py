@@ -52,7 +52,7 @@ print(dataset.hot_states_one_way(board, path, sample_system, 1, 3, 2, mode="focu
 #vergence(boards, reach, fpath, getStep(fboard), sample_system, analist))
 
 
-analist = -1
+analist = 1
 step = 3
 baseline = 6
 promising = 2
