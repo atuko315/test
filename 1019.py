@@ -29,10 +29,10 @@ sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timeli
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
 
-paths1 = sorted(Path('./label/important/important/long').glob('*.board'))
-paths2 = sorted(Path('./label/important/trivial/long').glob('*.board'))
-paths3 = sorted(Path('./label/trivial/important/long').glob('*.board'))
-paths4 = sorted(Path('./label/trivial/trivial/long').glob('*.board'))
+paths1 = sorted(Path('./label/important/important/short').glob('*.board'))
+paths2 = sorted(Path('./label/important/trivial/short').glob('*.board'))
+paths3 = sorted(Path('./label/trivial/important/short').glob('*.board'))
+paths4 = sorted(Path('./label/trivial/trivial/short').glob('*.board'))
 
 print(f"original: {len(paths1)}, {len(paths2)}, {len(paths3)}, {len(paths4)}")
 dataset1 = DatasetManager(game, paths1)
@@ -43,23 +43,35 @@ dataset1.make_board_set()
 dataset2.make_board_set()
 dataset3.make_board_set()
 dataset4.make_board_set()
+datasets = [dataset1, dataset2, dataset3, dataset4]
+#　方向は-1, 0, 1
+# 距離は0〜５
+# tmp_trajごとに一番多いベクトルと距離を取り出す
+analist = 1
+step = 1
+print(f"analist: {analist}, step: {step}")
+for j in range(len(dataset1.path_set)):
+    if j != 0:
+        continue
+    print(f"pattern: {j}")
+    for i in range(4):
+        
+        dataset = datasets[i]
+        pattern_path_set = dataset.make_pattern_path_set(j)
+        size = len(pattern_path_set)
+        traj_set, vec_set, dist_set = dataset.collect_pattern_vector_origin(sample_system, j, analist, step=step)
+        traj_size = len(traj_set)
+        vector = None
+        distance = None
+        
+        if vec_set:
+            vector = np.mean(np.array(vec_set))
+        if dist_set:
+            distance = np.mean(np.array(dist_set))
+        metric = abs(vector)*distance
+        print(f"{i+1} {abs(vector)} {distance} {metric} {size} {traj_size}")
 
-print("pattern, 1, 2, 3, 4")
-board1 = np.array(
-[[ 0, 0, 0, 0, 0, 0, 0],
- [ 0, 0, 0, 0, 0, 0, 0],
- [ 0, 0, 0, 1, 1, 1, 1],
- [ 0, 0, 0,-1,-1,-1,-1],
- [ 0,-1, 1, 1, 1,-1, 1],
- [ 0, 0, 1, 1,-1, 1,-1]], dtype=np.int32)
 
-pattern_path_set = dataset3.make_pattern_path_set(dataset3.pattern_set[0])
-path = pattern_path_set[1]
-content = load_data(path)
-imp, board, branch, fpath, importance = content
-dataset = DatasetManager(game, pattern_path_set)
-#traj = dataset1.collect_pattern_vector(dataset.pattern_set[0], sample_system, 1)
-print(dataset.hot_states_two_ways(board, path, sample_system, analist=1, step=3, baseline=6, promising=2, mode="focus"))
 
 '''
 for i in range(4):

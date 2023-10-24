@@ -27,6 +27,7 @@ import torch.nn as nn
 import math
 
 
+
 #mcts_args = dotdict({'numMCTSSims': 800, 'cpuct': 1.0})
 #mcts_weak_args = dotdict({'numMCTSSims': 0, 'cpuct': 0.1})
 #weak_timelimit = 1
@@ -756,8 +757,14 @@ class System(object):
             return True
         return False
     
-        
-        
+    def getLatest(self, path, step):
+        h = load_data(path)
+        tmp = h[step] # 注目する部分
+        self.turn = h[len(h)-1][0]
+        cboard = h[step][0]
+        pboard = h[step-1][0]
+        return self.detectAction(pboard, cboard)
+  
     def detectAction(self, pboard, cboard):
         pboard = np.array(pboard).reshape(1, -1)
         cboard = np.array(cboard).reshape(1, -1)
@@ -1810,7 +1817,7 @@ class System(object):
                 answer = 0
                 continue
     
-    def detectHotState(self, board, analist, path, step, threshold=0.1,limit=100, toend=False):
+    def detectHotState(self, board, analist, path, step, threshold=0.1,limit=100, toend=False, mode="board"):
         '''
         thresholdはvalue同士の同じとみなされる最大のライン
         1か-1になった盤面もしくは木の果ての部分
@@ -1820,6 +1827,9 @@ class System(object):
         toendがTrueだとjudgeで最後までいく
         '''
         zflag = True if analist == 0 else False
+
+        
+        traj = []
 
         #print(board)
         #print(type(board))
@@ -1845,21 +1855,20 @@ class System(object):
         #print(self.getPastValueNoModification( path, step, vboard, 1))
         if self.game.getGameEnded(board, curPlayer):
             #judge
-            return board, -1
+            result = (board, -1) if mode == "board" else (board, -1, traj)
+            return result
         
         
         if analist == 1:
             if vs not in sVs.keys():
-                return None, None
+                result = (None, None) if mode == "board" else (None, None, None)
+                return result
         else:
             if vs not in bVs.keys():
-                return None, None
+                result = (None, None) if mode == "board" else (None, None, None)
+                return result
         vvalue = sVs[vs] if analist ==1 else bVs[vs]
         vvalue *= vvalue
-        
-        
-       
-        
         
         vplayer = curPlayer
     
@@ -1871,7 +1880,8 @@ class System(object):
             #print(vvalue)
             #print("--------")
             if limit == 0:
-                return vboard, 0
+                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                return result
            
             valids = self.game.getValidMoves(vboard, vplayer)
             counts = self.getPastCount(path, step, vboard, analist)
@@ -1879,13 +1889,16 @@ class System(object):
 
             action = np.argmax(self.getPastActionProb(path, step, vboard, 
                                                       analist, counts = counts))
+            traj.append(action)
                 
             if valids[action] == 0:
-                return vboard, None
+                result = (vboard, None) if mode == "board" else (vboard, None, traj)
+                return result
             
             if sum(counts) == 0:
                 # edge
-                return vboard, 0
+                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                return result
                 
             vnextBoard, vplayer = self.game.getNextState(vboard, vplayer, action)
             vcanonicalBoard = self.game.getCanonicalForm(vboard, -vplayer)
@@ -1895,22 +1908,26 @@ class System(object):
             if analist == 1:
                 if vs not in sVs.keys():
                     # edge
-                    return vboard, 0
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
             else:
                 if vs not in bVs.keys():
                     # edge
-                    return vboard, 0
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
                 
             vnextValue = sVs[vs] if analist ==1 else bVs[vs]
             vnextValue *= modify
             if not toend:
                 if abs(vnextValue-vvalue) < threshold and abs(vvalue) == 1:
                     # judge
-                    return vboard, 1
+                    result = (vboard, 1) if mode == "board" else (vboard, 1, traj)
+                    return result
           
             if self.game.getGameEnded(vnextBoard, vplayer):
                 # end
-                return vnextBoard, -1
+                result = (vnextBoard, -1) if mode == "board" else (vnextBoard, -1, traj)
+                return result
             
             
             
@@ -2318,6 +2335,16 @@ class System(object):
                 for a in range(self.game.getActionSize())
             ]
         return counts
+    
+    def getAllPastValues(self, path, step, board, analist):
+        height, width = self.game.getBoardSize()
+        player = getCurrentPlayer(board)
+        valid = self.game.getValidMoves(board, player)
+        valid = [i  for i in range(len(valid)) if valid[i]]
+        values = [self.getPastValueNoModification(path, step, self.game.getNextState(board.copy(), player, i)[0], analist) if i in valid else -1 for i in range(width) ]
+        return values
+
+
     
     def getPastValue(self, path, step, board, analist):
         h = load_data(path)

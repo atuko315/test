@@ -45,10 +45,10 @@ print(len(paths1), len(paths2), len(paths3), len(paths4))
 #print(dataset1.check_convergence(boards, reach, fpath, getStep(fboard), sample_system, analist))
 
 
-analist = 1
-step = 2
+analist = -1
+step = 4
 baseline = 6
-promising = 4
+promising = 2
 print("手番修正版")
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):
@@ -57,7 +57,19 @@ for  i in range(len(paths)):
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
     #ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
-    print(f"result: {i+1} {bfcount} {bfdcount} {sfcount} {sfdcount} {size}")
-    #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
+    vec_diff = 0
+    dist_diff = 0
+    met_diff = 0
+    for p in paths[i]:
+        content = load_data(p)
+        if len(content) < 5:
+            importance, board, brance, fpath = content
+        else:
+            imp, board, branch, fpath, importance = content
+        
+        bfcount, bfdcount, trajs = dataset.hot_states_one_way(board, p, sample_system, analist, step, baseline=promising, mode="traj")
+        print(bfcount, bfdcount, trajs)
+    
+    
+    
 

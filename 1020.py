@@ -43,30 +43,40 @@ dataset1.make_board_set()
 dataset2.make_board_set()
 dataset3.make_board_set()
 dataset4.make_board_set()
+datasets = [dataset1, dataset2, dataset3, dataset4]
 
 print("pattern, 1, 2, 3, 4")
-board1 = np.array(
+board = np.array(
 [[ 0, 0, 0, 0, 0, 0, 0],
  [ 0, 0, 0, 0, 0, 0, 0],
- [ 0, 0, 0, 1, 1, 1, 1],
- [ 0, 0, 0,-1,-1,-1,-1],
- [ 0,-1, 1, 1, 1,-1, 1],
- [ 0, 0, 1, 1,-1, 1,-1]], dtype=np.int32)
+ [ 0, 0, 0, 0, 0, 0, 0],
+ [ 0, 0, 0,-1, 1, 0,-1],
+ [ 0,-1,-1, 1, 1, 0, 1],
+ [ 0,-1, 1,-1, 0, 0, 1]], dtype=np.int32)
+#print(dataset1.pattern_set[2])
+#contain_indices, pure_indices = dataset1.match_pattern(board, dataset1.pattern_set[2])
+#print(contain_indices) #ななめいけてない？？？6,7, 10, 11も 
+#for dataset in datasets:
+#    pattern_path_set = dataset.make_pattern_path_set(dataset.pattern_set[0])
 
-pattern_path_set = dataset3.make_pattern_path_set(dataset3.pattern_set[0])
-path = pattern_path_set[1]
-content = load_data(path)
-imp, board, branch, fpath, importance = content
-dataset = DatasetManager(game, pattern_path_set)
-#traj = dataset1.collect_pattern_vector(dataset.pattern_set[0], sample_system, 1)
-print(dataset.hot_states_two_ways(board, path, sample_system, analist=1, step=3, baseline=6, promising=2, mode="focus"))
+analist = -1
+step = 1
 
-'''
 for i in range(4):
-    paths = paths[i]
-    dataset = DatasetManager(game, paths)
-    dataset.make_board_set()
-    pattern_path_set = dataset.make_pattern_path_set(dataset.pattern_set[0])
-    #一旦その時点からベクトルをあつめる
-    pattern_dataset = DatasetManager(game, pattern_path_set)
-'''
+        dataset = datasets[i]
+        pattern_path_set = dataset.make_pattern_path_set(dataset.pattern_set[0])
+        size = len(pattern_path_set)
+        traj_set, vec_set, dist_set = dataset.collect_pattern_vector(dataset.pattern_set[0], sample_system, analist, step=step)
+        traj_size = len(traj_set)
+        vector = None
+        distance = None
+        print(traj_set)
+        print(vec_set)
+        print(dist_set)
+        if vec_set:
+            vector = np.mean(np.array(sum(vec_set, [])))
+        if dist_set:
+            distance = np.mean(np.array(sum(dist_set, [])))
+        metric = abs(vector)*distance
+        print(f"{i+1} {abs(vector)} {distance} {metric} {size} {traj_size}")
+
