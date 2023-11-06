@@ -14,7 +14,6 @@ from submission_sample import SimpleAgent, dotdict, MCTS
 from connect4_game import Connect4Game
 import time
 
-import pickle
 from collections import defaultdict
 import collections
 from random import choice
