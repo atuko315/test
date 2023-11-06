@@ -10,11 +10,10 @@ import os
 import io
 import numpy as np
 from submission_sample import SimpleAgent, dotdict, MCTS
-from parl.utils import logger
+
 from connect4_game import Connect4Game
 import time
-from time import sleep
-from datetime import datetime
+
 import pickle
 from collections import defaultdict
 import collections
@@ -30,32 +29,9 @@ import math
 #mcts_weak_args = dotdict({'numMCTSSims': 0, 'cpuct': 0.1})
 #weak_timelimit = 1
 # arg一応この最終版でいいかな？？
-def write_data(history, offline=False, p=False):
-  now = datetime.now()
-  os.makedirs('./data/', exist_ok=True)
-  path = './data/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
-      now.year, now.month, now.day, now.hour, now.minute, now.second)
-  if offline == True:
-      os.makedirs('./offdata/', exist_ok=True)
-      path = './offdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
-          now.year, now.month, now.day, now.hour, now.minute, now.second)
-  if p == True:
-      os.makedirs('./pdata/', exist_ok=True)
-      path = './pdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
-          now.year, now.month, now.day, now.hour, now.minute, now.second)
-  with open(path, mode='wb') as f:
-    pickle.dump(history, f)
 
-def store_data(data, dirname):
-    path = './'+dirname
-    now = datetime.now()
-    path += '/{:04}{:02}{:02}{:02}{:02}{:02}.board'.format(
-        now.year, now.month, now.day, now.hour, now.minute, now.second)
-    with open(path, mode='wb') as f:
-      pickle.dump(data, f)
-def load_data(path):
-    with path.open(mode='rb') as f:
-        return pickle.load(f)
+
+
 
 def encode_weight(model_path):
     with open(model_path, 'rb') as f:
@@ -979,8 +955,7 @@ class System(object):
                 self.game.getCanonicalForm(board, curPlayer), 1)
             
             if valids[action] == 0:
-                logger.error('Action {} is not valid!'.format(action))
-                logger.debug('valids = {}'.format(valids))
+                
                 assert valids[action] > 0
             
             #両mctsのnを保存、ｖも
@@ -1135,8 +1110,7 @@ class System(object):
             
             if valids[action] == 0:
                 print(board, action, curPlayer)
-                logger.error('Action {} is not valid!'.format(action))
-                logger.debug('valids = {}'.format(valids))
+                
                 
                 action = choice([i for i in range(len(valids)) if valids[i]])
                 

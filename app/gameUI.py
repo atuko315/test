@@ -407,6 +407,7 @@ class UImanager(tk.Frame):
         if not self.answer[key]:
             self.answer[key] = self.hot_states_one_way(analist, step=4, baseline=2, fix=-1)
         bfcount, bfdcount, new_trajs, gs4, gd2, groups, visual = self.answer[key]
+        print(gd2)
         groups = dict(groups)
         
         traj = []

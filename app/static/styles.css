@@ -1,0 +1,48 @@
+/* ボード全体を囲むコンテナ */
+.board-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr); /* 7列 */
+    grid-template-rows: repeat(6, 1fr); /* 6行 */
+    width: 400px; /* ボードの幅（調整してください） */
+    height: 400px; /* ボードの高さ（調整してください） */
+    margin: 0 auto; /* 中央に配置 */
+    background-color: #00A0FF; /* ボードの背景色 */
+}
+
+/* 各セル（マス目） */
+.cell {
+    width: 90%; /* セルの幅 */
+    height: 90%; /* セルの高さ */
+    border: 1px solid #000; /* セルの境界線 */
+    background-color: #FFF; /* 空いているセルの背景色（白色） */
+    margin: 5%; /* 駒との間隔を設定 */
+}
+
+/* 赤い駒（1）のセル */
+.cell.red {
+    background-color: #FF0000;
+    border-radius: 50%; /* 丸い形にする */
+}
+
+/* 黄色い駒（-1）のセル */
+.cell.yellow {
+    background-color: #FFFF00;
+    border-radius: 50%; /* 丸い形にする */
+}
+
+.cell.white{
+    background-color: #FFF;
+    border-radius: 50%; /* 丸い形にする */
+}
+.message {
+    /* メッセージ用のスタイル設定 */
+    display: none; /* 初期状態では非表示 */
+    background-color: #333; /* バックグラウンドカラー */
+    color: #fff; /* テキストカラー */
+    padding: 10px; /* パディング */
+    text-align: center; /* テキストの配置を中央に */
+    position: fixed; /* 固定位置に表示 */
+    top: 10px; /* 上からの位置 */
+    left: 50%; /* 左からの位置（中央に寄せるため） */
+    transform: translateX(-50%); /* 水平方向に中央に寄せる */
+}

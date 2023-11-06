@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Connect4 Game</title>
+    <style>
+        /* スタイルを追加 */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 50px); /* 7列 */
+            grid-template-rows: repeat(6, 50px); /* 6行 */
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: white; /* 空いているセルの背景色 */
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Connect4 Game</h1>
+    <div id="game-board"></div>
+    <p>Status: <span id="game-status">Waiting for your move...</span></p>
+    <button id="reset-button">Reset Game</button>
+    
+    <script>
+       
+        // ゲームの状態を表す2次元配列
+        const gameBoard = [
+            Array(7).fill(0), // 6行7列のボード
+            Array(7).fill(0),
+            Array(7).fill(0),
+            Array(7).fill(0),
+            Array(7).fill(0),
+            Array(7).fill(0)
+        ];
+
+        const currentPlayer = 1; // 現在のプレイヤー (1: プレイヤー1, -1: プレイヤー2)
+        const statusElement = document.getElementById("game-status");
+
+        // ボードを描画する関数
+        function drawBoard() {
+            const gameBoardElement = document.getElementById("game-board");
+            gameBoardElement.innerHTML = "";
+
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cellElement = document.createElement("div");
+                    cellElement.className = "cell";
+                    cellElement.dataset.row = row;
+                    cellElement.dataset.col = col;
+
+                    if (gameBoard[row][col] === 1) {
+                        cellElement.style.backgroundColor = "red";
+                    } else if (gameBoard[row][col] === -1) {
+                        cellElement.style.backgroundColor = "yellow";
+                    }
+
+                    cellElement.addEventListener("click", () => handleMove(row, col));
+                    gameBoardElement.appendChild(cellElement);
+                }
+            }
+        }
+
+        // ゲーム終了時に呼び出す関数
+        function endGame(winner) {
+            if (winner === 0) {
+                statusElement.textContent = "It's a draw! Click 'Reset Game' to play again.";
+            } else {
+                statusElement.textContent = `Player ${winner} wins! Click 'Reset Game' to play again.`;
+            }
+        }
+
+        // ゲームボードをリセットする関数
+        function resetBoard() {
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    gameBoard[row][col] = 0;
+                }
+            }
+            currentPlayer = 1;
+            statusElement.textContent = "Waiting for your move...";
+            drawBoard();
+        }
+
+        // プレイヤーの着手を処理する関数
+        function handleMove(row, col) {
+            if (gameBoard[row][col] !== 0) return; // セルが空いていない場合は何もしない
+
+            gameBoard[row][col] = currentPlayer;
+            drawBoard();
+
+            // ゲームの状態をチェックするロジックを追加（勝利判定など）
+
+            // プレイヤーのターンを交代
+            currentPlayer = -currentPlayer;
+        }
+
+        // リセットボタンをクリックしたときにゲームボードをリセット
+        const resetButton = document.getElementById("reset-button");
+        resetButton.addEventListener("click", resetBoard);
+
+        // 初期状態でボードを描画
+        drawBoard();
+
+
+    
+    </script>
+</body>
+</html>

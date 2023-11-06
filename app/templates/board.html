@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Connect4</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div id="game-board"></div>
+    <div id="message-container">
+        <p id="message"></p>
+    </div>
+    
+    
+    <script>
+        var board = [
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0]
+        ];
+       
+        var player = 1;
+
+        var cell_class = { 1: 'red', 0: 'white'};
+       
+        function setBoardToOnes() {
+            // ボードの全ての要素を1に変更
+            for (var i = 0; i < board.length; i++) {
+                for (var j = 0; j < board[i].length; j++) {
+                    board[i][j] = 1;
+                }
+            }
+
+            // ボードを再描画
+            renderBoard(board, cellClass);
+        }
+        function clearBoard() {
+            var gameBoardElement = document.getElementById('game-board');
+            while (gameBoardElement.firstChild) {
+                gameBoardElement.removeChild(gameBoardElement.firstChild);
+            }
+        }
+
+        
+        function renderBoard(board, cellClass) {
+            clearBoard()
+            var boardContainer = document.createElement('div');
+            boardContainer.className = 'board-container'
+            for (var i = 0; i < board[0].length; i++) {
+                var row = document.createElement('div');
+                row.className = 'row';
+
+                for (var j = 0; j < board.length; j++) {
+                    var cell = document.createElement('div');
+                    cell.className = 'cell ' + cellClass[board[j][i]];
+                    if (board[j][i] == -1){
+                        cell.className = 'cell ' + 'yellow';
+                    }
+
+                    row.appendChild(cell);
+                }
+
+                boardContainer.appendChild(row);
+            }
+            var gameBoardElement = document.getElementById('game-board');
+            gameBoardElement.appendChild(boardContainer);
+            
+            
+        }
+        function getBoardFromServer() {
+            fetch('/get_board')
+            .then(response => response.json())
+            .then(data => {
+                // 取得したデータを処理
+                board = data.board;
+                // ここで board を使用して何か処理を行うことができます
+                console.log(board);
+                addClickHandlers();
+
+            });
+        }
+        function updateBoardOnServer(c) {
+            // ボードの状態をサーバーに送信
+            fetch('/update_board', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'action': c}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                board = data.updatedBoard; // サーバーからのデータでboard変数を更新
+                result = data.gameResult;
+                player = data.player
+                
+                if (result != 0){
+                    
+                    showMessage("end");
+                    document.getElementById("game-board").addEventListener('click', function() {
+                        hideMessage();
+                    });
+                    player = 1;
+                    startFeedback()
+                }
+                renderBoard(board, cell_class); // ボードを再描画
+                if (result == 0){
+                    turnOfAI();
+                }
+                
+                addClickHandlers();
+
+            });
+        }
+        function turnOfAI(){
+            fetch('/turn_of_AI', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                board = data.updatedBoard; // サーバーからのデータでboard変数を更新
+                result = data.gameResult;
+                player = data.player
+                
+                if (result != 0){
+                    
+                    showMessage("end");
+                    document.getElementById("game-board").addEventListener('click', function() {
+                        hideMessage();
+                    });
+                    player = 1;
+                    startFeedback()
+                }
+                renderBoard(board, cell_class); // ボードを再描画
+                addClickHandlers();
+            });
+            
+        }
+
+        function addClickHandlers() {
+            if (player != 1){
+                return
+            }
+            renderBoard(board, cell_class)
+            console.log("setup")
+            var cells = document.querySelectorAll('.cell');
+            
+            cells.forEach(function(cell, index) {
+                cell.addEventListener('click', function() {
+                    console.log(index)
+                    var row = Math.floor(index / 6);  // 行
+                    var col = index % 6;              // 列
+                    // クリックされたセルの位置を1に変更
+                    var new_index = col * 7 + row;
+                    //board[Math.floor(new_index / 7)][new_index % 7] = 1;
+                    console.log(new_index % 7);
+                    // ボードを再描画
+                    //ボードをappに送り返す
+                    updateBoardOnServer(new_index % 7);
+                    renderBoard(board, cell_class);
+                    
+                });
+            });
+            
+        }
+        function showMessage(message) {
+            console.log(showMessage)
+            var messageContainer = document.getElementById("message-container");
+            var messageElement = document.getElementById("message");
+            messageElement.textContent = message;
+            messageContainer.style.display = "block";
+        }
+
+        function hideMessage() {
+            var messageContainer = document.getElementById("message-container");
+            messageContainer.style.display = "none";
+        }
+        function startFeedback(){
+            console.log("feedback")
+        }
+        function startGame(){
+
+        }
+
+                
+
+        // ある条件下で関数を呼び出す例
+        // この例ではボタンをクリックしたときに関数を呼び出します
+        var button = document.createElement("button");
+        button.innerText = "ボードを取得";
+        button.onclick = getBoardFromServer;
+        document.body.appendChild(button);
+        window.addEventListener('load', function() {
+            addClickHandlers();
+        });
+    </script>
+    <button onclick="startGame()">ゲームを開始</button>
+    <button onclick="renderBoard(board, cell_class)">ボードを表示</button>
+</body>
+</html>
