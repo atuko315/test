@@ -14,14 +14,32 @@
     width: 90%; /* セルの幅 */
     height: 90%; /* セルの高さ */
     border: 1px solid #000; /* セルの境界線 */
-    background-color: #FFF; /* 空いているセルの背景色（白色） */
+    background-color: #FFF; /*空いているセルの背景色（白色） */
     margin: 5%; /* 駒との間隔を設定 */
+    display: flex; /* フレックスボックスを使用して中央寄せ */
+    align-items: center; /* 垂直方向の中央寄せ */
+    justify-content: center; /* 水平方向の中央寄せ */
+    font-size: 16px; /* テキストのフォントサイズを設定 */
+    position: relative; /* 相対位置を指定 */
+
+    /* セル内のテキスト */
+    /* ::before または ::after 擬似要素を使用してセル内にテキストを挿入 */
+    content: "";
+}
+.cell::after {
+    color: #000;
+    content: attr(data-text); /* テキストの内容をセル内の属性から取得 */
+    position: absolute;
+    top: 50%; /* 上端の中央に配置 */
+    left: 50%; /* 左端の中央に配置 */
+    transform: translate(-50%, -50%);/* テキストの色を指定 */
 }
 
 /* 赤い駒（1）のセル */
 .cell.red {
     background-color: #FF0000;
     border-radius: 50%; /* 丸い形にする */
+    
 }
 
 /* 黄色い駒（-1）のセル */
@@ -32,6 +50,10 @@
 
 .cell.white{
     background-color: #FFF;
+    border-radius: 50%; /* 丸い形にする */
+}
+.cell.gradient{
+    background: linear-gradient(to bottom, #FF0000, #FF9999); /* 赤から淡い赤へのグラデーション */
     border-radius: 50%; /* 丸い形にする */
 }
 .message {
@@ -45,4 +67,13 @@
     top: 10px; /* 上からの位置 */
     left: 50%; /* 左からの位置（中央に寄せるため） */
     transform: translateX(-50%); /* 水平方向に中央に寄せる */
+}
+.overlay-rectangle {
+    position: absolute;
+    top: 5px; /* 上からの位置（調整してください） */
+    left: 100px; /* 左からの位置（調整してください） */
+    width: 60px; /* 幅（調整してください） */
+    height: 400px; /* 高さ（調整してください） */
+    background-color: rgba(0, 255, 0, 0.5);/* 緑色の背景色 */
+    z-index: 1; /* 他の要素の上に表示するためのz-index */
 }

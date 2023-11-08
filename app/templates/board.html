@@ -21,6 +21,14 @@
             [0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0]
         ];
+        var fboard = [
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0]
+        ];
        
         var player = 1;
 
@@ -43,6 +51,190 @@
                 gameBoardElement.removeChild(gameBoardElement.firstChild);
             }
         }
+        function interpolate_color(value){
+            var r1 = 128; var g1 = 0; var b1 = 128;
+            var r2 = 255; var g2 = 255; var b2 = 0;
+            var r = Math.round(r1 + (r2 - r1) * value);
+            var g = Math.round(g1 + (g2 - g1) * value);
+            var b = Math.round(b1 + (b2 - b1) * value);
+            var backgroundColor = "rgb(" + r + "," + g + "," + b + ")";
+            console.log(backgroundColor)
+            console.log(r)
+            return backgroundColor
+
+        
+        }
+        function renderMap(saliency) {
+            clearBoard()
+            
+            var boardContainer = document.createElement('div');
+            boardContainer.className = 'board-container'
+            for (var i = 0; i < board[0].length; i++) {
+                var row = document.createElement('div');
+                row.className = 'row';
+
+                for (var j = 0; j < board.length; j++) {
+                    var cell = document.createElement('div');
+                    cell.className = 'cell ';
+                    cell.style.backgroundColor = interpolate_color(saliency[j][i]);
+                    row.appendChild(cell);
+                }
+
+                boardContainer.appendChild(row);
+            }
+            var gameBoardElement = document.getElementById('game-board');
+            gameBoardElement.appendChild(boardContainer);
+            
+            
+        }
+        function renderTraj(board, text, cellClass){
+            clearBoard()
+            console.log(text)
+            var boardContainer = document.createElement('div');
+            boardContainer.className = 'board-container'
+            for (var i = 0; i < board[0].length; i++) {
+                var row = document.createElement('div');
+                row.className = 'row';
+
+                for (var j = 0; j < board.length; j++) {
+                    var cell = document.createElement('div');
+                    cell.className = 'cell ' + cellClass[board[j][i]];
+                    if (board[j][i] == -1){
+                        cell.className = 'cell ' + 'yellow';
+                    }
+                    cell.setAttribute('data-text', text[j][i]); 
+                    row.appendChild(cell);
+                }
+
+                boardContainer.appendChild(row);
+            }
+            var gameBoardElement = document.getElementById('game-board');
+            gameBoardElement.appendChild(boardContainer);
+            
+
+        }
+        function renderVec(board, key_c, vector, distance, cellClass) {
+
+            clearBoard()
+            var boardContainer = document.createElement('div');
+            boardContainer.className = 'board-container'
+            for (var i = 0; i < board[0].length; i++) {
+                var row = document.createElement('div');
+                row.className = 'row';
+
+                for (var j = 0; j < board.length; j++) {
+                    var cell = document.createElement('div');
+                    cell.className = 'cell ' + cellClass[board[j][i]];
+                    if (board[j][i] == -1){
+                        cell.className = 'cell ' + 'yellow';
+                    }
+                    
+                    row.appendChild(cell);
+                }
+
+                boardContainer.appendChild(row);
+            }
+            let left = false;
+            let right = false;
+
+            const color = "green";
+            const alpha = 0.5;
+
+            if (vector < 0) {
+                left = true;
+            } else {
+                right = true;
+            }
+
+            if (Math.abs(vector) < 0.5) {
+                left = true;
+                right = true;
+            }
+            console.log(key_c, distance)
+            if (left) {
+                var vector = document.createElement('div');
+                vector.className = 'overlay-rectangle';
+                position = 300 + 56 * (key_c + 0.5 - distance);
+                position = position.toString();
+                vector.style.left =  position + 'px'; // 左からの位置（適切な値に置き換えてください）
+
+
+                if (distance < 2.5) {
+                    ;
+                    //ctx.fillStyle = 'green';
+                    //ctx.fillRect(base - width, 0, base + width, canvas.height);
+                } else {
+                    ;
+                    //ctx.fillStyle = 'green';
+                    //ctx.fillRect(0, 0, base + width, canvas.height);
+                }
+                boardContainer.appendChild(vector);
+                
+            }
+
+            if (right) {
+                
+                var vector = document.createElement('div');
+                vector.className = 'overlay-rectangle';
+                //vector.style.top = '100px'; // 上からの位置（適切な値に置き換えてください）
+                position = 300 + 56 * (key_c + 0.5 + distance);
+                position = position.toString();
+                vector.style.left = position + 'px'; 
+
+                if (distance < 2.5) {
+                    ;
+                    //ctx.fillStyle = 'green';
+                    //ctx.fillRect(base - width, 0, base + width, canvas.height);
+                } else {
+                    ;
+                    //ctx.fillStyle = 'green';
+                    //ctx.fillRect(base - width, 0, canvas.width, canvas.height);
+                }
+                boardContainer.appendChild(vector);
+            }
+            
+            var gameBoardElement = document.getElementById('game-board');
+            gameBoardElement.appendChild(boardContainer);
+            console.log(boardContainer)
+
+        }
+        function saliency_map(){
+            fetch('/saliency_map', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                saliency = data.saliency; // サーバーからのデータでboard変数を更新
+                renderMap(saliency); // ボードを再描画
+                
+            });
+
+        }
+        function fatal_map(){
+            fetch('/fatal_map', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                fatals = data.fatals; // サーバーからのデータでboard変数を更新
+                renderMap(fatals); // ボードを再描画
+                
+            });
+
+        }
+
 
         
         function renderBoard(board, cellClass) {
@@ -188,8 +380,118 @@
         }
         function startFeedback(){
             console.log("feedback")
+            createButton("forward", forwardOne);
+            createButton("back", backOne);
+            createButton("traj", showTraj);
+            createButton("vec", showVec);
+            createButton("map", fatal_map);
+            
+        }
+
+        function createButton(text, onclick){
+            console.log("create")
+            var button = document.createElement("button");
+            button.innerText = text;
+            button.onclick = onclick;
+            document.body.appendChild(button);
+        }
+        function forwardOne(){
+            fetch('/forward_one', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                board = data.board; // サーバーからのデータでboard変数を更新
+                renderBoard(board, cell_class); // ボードを再描画
+                
+            });
+
+        }
+        function backOne(){
+            fetch('/back_one', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                board = data.board; // サーバーからのデータでboard変数を更新
+                renderBoard(board, cell_class); // ボードを再描画
+                
+            });
+            
+        }
+        function showTraj(analist=1, mode="group"){
+            fetch('/show_traj', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                fboard = data.board; // サーバーからのデータでboard変数を更新
+                text = data.text;
+                console.log(text);
+                renderTraj(fboard, text, cell_class); // ボードを再描画
+                
+            });
+        }
+        function showVec(){
+            fetch('/show_vec', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                fboard = data.board; // サーバーからのデータでboard変数を更新
+                c = data.key_c;
+                vec = data.vector
+                dist = data.distance
+                renderVec(fboard, c, vec, dist, cell_class); // ボードを再描画
+                
+            });
+
+        }
+        function showMap(){
+
         }
         function startGame(){
+
+        }
+        function reset(){
+            fetch('/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                board = data.board;
+                player = data.player;
+                renderBoard(board, cell_class)
+                addClickHandlers();
+            });
 
         }
 
@@ -197,15 +499,14 @@
 
         // ある条件下で関数を呼び出す例
         // この例ではボタンをクリックしたときに関数を呼び出します
-        var button = document.createElement("button");
-        button.innerText = "ボードを取得";
-        button.onclick = getBoardFromServer;
-        document.body.appendChild(button);
+        
+        
         window.addEventListener('load', function() {
             addClickHandlers();
         });
     </script>
+    <button onclick="reset()">リセット</button>
     <button onclick="startGame()">ゲームを開始</button>
-    <button onclick="renderBoard(board, cell_class)">ボードを表示</button>
+    
 </body>
 </html>
