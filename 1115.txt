@@ -1,0 +1,10 @@
+[11-15 14:07:13 MainThread @logger.py:242] Argv: 1026.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-15 14:07:15 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-15 14:07:15 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+[11-15 14:20:24 MainThread @logger.py:242] Argv: 1026.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-15 14:20:26 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-15 14:20:26 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
