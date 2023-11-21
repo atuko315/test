@@ -1,8 +1,3 @@
-[11-21 09:33:07 MainThread @logger.py:242] Argv: count_pattern.py
-/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
-  return torch._C._cuda_getDeviceCount() > 0
-[11-21 09:33:08 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
-[11-21 09:33:08 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
 v2, h2, d21, d22, e31, e32, e33, e34, h3, v3, d31, d32, h3e1, h3e2, h3e3, v3e1, v3e2, v3e3, vh2e1, vh2e2, vh2e3, 
 label/important/important/short, 473, 455, 211, 276, 43, 36, 47, 62, 38, 258, 0, 17, 185, 93, 147, 203, 92, 134, 18, 10, 75, 
 label/important/important/middle, 1495, 1388, 1361, 1383, 791, 785, 825, 881, 545, 1097, 299, 434, 963, 905, 978, 1377, 1405, 1143, 425, 399, 760, 
