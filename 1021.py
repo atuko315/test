@@ -54,6 +54,7 @@ for analist in analists:
         else:
             imp, board, branch, fpath, importance = content
         
+        
         values = sample_system.getAllPastValues(fpath, getStep(board), board, analist)
         
         counts = sample_system.getPastCount(fpath, getStep(board), board, analist)

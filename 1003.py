@@ -20,7 +20,7 @@ from collections import defaultdict
 #factor = 31
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 
 game = Connect4Game()
 strong_timellimit = 5
@@ -47,9 +47,9 @@ print(len(paths1), len(paths2), len(paths3), len(paths4))
 
 analist = 1
 step = 2
-baseline = 6
+baseline = 2
 promising = 4
-print("手番修正版")
+print(" 1と２")
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):
     

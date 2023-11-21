@@ -10,7 +10,7 @@
     <div id="message-container">
         <p id="message"></p>
     </div>
-    
+    <div id="button-container"></div>
     
     <script>
         var board = [
@@ -57,14 +57,13 @@
             var r = Math.round(r1 + (r2 - r1) * value);
             var g = Math.round(g1 + (g2 - g1) * value);
             var b = Math.round(b1 + (b2 - b1) * value);
-            var backgroundColor = "rgb(" + r + "," + g + "," + b + ")";
-            console.log(backgroundColor)
-            console.log(r)
+            var backgroundColor = "rgba(" + r + "," + g + "," + b + ", 0.7)";
+            
             return backgroundColor
 
         
         }
-        function renderMap(saliency) {
+        function renderMap(saliency, board, cellClass) {
             clearBoard()
             
             var boardContainer = document.createElement('div');
@@ -74,10 +73,18 @@
                 row.className = 'row';
 
                 for (var j = 0; j < board.length; j++) {
+                    
                     var cell = document.createElement('div');
-                    cell.className = 'cell ';
-                    cell.style.backgroundColor = interpolate_color(saliency[j][i]);
+                    cell.className = 'cell ' + cellClass[board[j][i]];
+                    if (board[j][i] == -1){
+                        cell.className = 'cell ' + 'yellow';
+                    }
+                    cell.style.setProperty('--circle-color', interpolate_color(saliency[j][i]));
+                    cell.style.setProperty('--layer', 1);
+                    //cell.className = 'cell ';
                     row.appendChild(cell);
+
+                    
                 }
 
                 boardContainer.appendChild(row);
@@ -89,7 +96,7 @@
         }
         function renderTraj(board, text, cellClass){
             clearBoard()
-            console.log(text)
+            
             var boardContainer = document.createElement('div');
             boardContainer.className = 'board-container'
             for (var i = 0; i < board[0].length; i++) {
@@ -195,7 +202,7 @@
             
             var gameBoardElement = document.getElementById('game-board');
             gameBoardElement.appendChild(boardContainer);
-            console.log(boardContainer)
+            
 
         }
         function saliency_map(){
@@ -211,7 +218,8 @@
                 // サーバーからの応答を処理
                 // 例: 更新されたボードを表示
                 saliency = data.saliency; // サーバーからのデータでboard変数を更新
-                renderMap(saliency); // ボードを再描画
+                board = data.board;
+                renderMap(saliency, board, cell_class); // ボードを再描画
                 
             });
 
@@ -229,7 +237,8 @@
                 // サーバーからの応答を処理
                 // 例: 更新されたボードを表示
                 fatals = data.fatals; // サーバーからのデータでboard変数を更新
-                renderMap(fatals); // ボードを再描画
+                board = data.board;
+                renderMap(fatals, board, cell_class); // ボードを再描画
                 
             });
 
@@ -269,7 +278,7 @@
                 // 取得したデータを処理
                 board = data.board;
                 // ここで board を使用して何か処理を行うことができます
-                console.log(board);
+                //console.log(board);
                 addClickHandlers();
 
             });
@@ -378,22 +387,156 @@
             var messageContainer = document.getElementById("message-container");
             messageContainer.style.display = "none";
         }
+        function startTrajMode(){
+            //var buttonContainer = document.getElementById("button-container");
+            fetch('/get_valids', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': fboard}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                valids = data.valids; // サーバーからのデータでboard変数を更新
+                createButton("traj mode", EndTrajMode())
+                console.log("valid");
+                var buttonContainer = document.getElementById("button-container");
+                for (  var i = 0;  i < valids.length;  i++  ) {
+                    console.log(valids[i]);
+                    action = valids[i];
+                    
+                   
+                    //console.log("create")
+                    var button = document.createElement("button");
+                    button.id = String(action);
+                    button.innerText = String(action);
+                    button.onclick = function(innerText) {
+                        return function(event) {
+                            event.preventDefault(); // デフォルトのイベントをキャンセル
+                            console.log("button");
+                            console.log(innerText);
+                            MyHotTraj(Number(innerText));
+                            //HotTraj(Number(innerText));
+                        };
+                    }(button.innerText);
+                    buttonContainer.appendChild(button);
+                }
+                    
+                });
+            
+        }
+        function HotTraj(action){
+            fetch('/hot_traj', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'action': action, 'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                fboard = data.board; // サーバーからのデータでboard変数を更新
+                text = data.text;
+                renderTraj(fboard, text, cell_class);
+                
+                
+            });
+        }
+        function MyHotTraj(action){
+            fetch('/my_hot_traj', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'action': action, 'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                fboard = data.board; // サーバーからのデータでboard変数を更新
+                text = data.text;
+                renderTraj(fboard, text, cell_class);
+                
+                
+            });
+        }
+        function getValids(fboard){
+            fetch('/get_valids', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': fboard}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                valids = data.valids; // サーバーからのデータでboard変数を更新
+                console.log("v")
+                console.log(valids)
+                return valids;
+                
+            });
+
+
+        }
         function startFeedback(){
-            console.log("feedback")
+            //console.log("feedback")
             createButton("forward", forwardOne);
             createButton("back", backOne);
-            createButton("traj", showTraj);
+            //createButton("traj", showTraj);
+            createButton("traj", startTrajMode);
             createButton("vec", showVec);
             createButton("map", fatal_map);
+            //cretateButton("map", saliency_map);
             
+        }
+        function EndFeedback(){
+            EndTrajMode();
+            removeButton("forward");
+            removeButton("back");
+            removeButton("traj");
+            removeButton("vec");
+            removeButton("map");
+            
+        }
+        function EndTrajMode(){
+            for(var i = 0; i < 7; i++ ){
+                removeButton(String(i));
+            }
+            removeButton("traj mode");
         }
 
         function createButton(text, onclick){
-            console.log("create")
+            var buttonContainer = document.getElementById("button-container")
+            //console.log("create")
             var button = document.createElement("button");
+            button.id = text;
             button.innerText = text;
             button.onclick = onclick;
-            document.body.appendChild(button);
+            buttonContainer.appendChild(button);
+        }
+        function removeButton(text){
+            var buttonContainer = document.getElementById("button-container")
+            var buttons = buttonContainer.childNodes;
+            // 子要素から指定されたテキストに一致するものを探す
+            for (var i = 0; i < buttons.length; i++) {
+                var button = buttons[i];
+
+                // テキストに一致するか確認
+                if (button.innerText === text) {
+                    // 一致したら削除
+                    buttonContainer.removeChild(button);
+                    return;  // 一致したら処理終了
+                }
+            }
         }
         function forwardOne(){
             fetch('/forward_one', {
@@ -489,7 +632,9 @@
             .then(data => {
                 board = data.board;
                 player = data.player;
+
                 renderBoard(board, cell_class)
+                EndFeedback();
                 addClickHandlers();
             });
 

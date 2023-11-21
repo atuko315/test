@@ -173,7 +173,12 @@ def saliency_map(mode="policy"):
     max_value = saliencies[int(np.argmax(saliencies)/7)][np.argmax(saliencies)%7]
     saliencies /= max_value
     print(saliencies)
-    return jsonify({'saliency': saliencies.tolist()})
+    response_data = {
+        'board': fboard.tolist(),
+        'saliency': saliencies.tolist()
+        # 他の情報をここで追加
+    }
+    return jsonify(response_data)
 @app.route('/fatal_map', methods=['POST'])
 def fatal_map(analist=1):
         global answer
@@ -189,7 +194,12 @@ def fatal_map(analist=1):
         visual = visual.tolist()
         visual /= max_value
         print(visual)
-        return jsonify({'fatals': visual.tolist()})
+        response_data = {
+        'board': fboard.tolist(),
+        'fatals': visual.tolist()
+        # 他の情報をここで追加
+        }
+        return jsonify(response_data)
 
 @app.route('/show_traj', methods=['POST'])
 def show_traj(analist=1, mode="group"):
@@ -203,8 +213,10 @@ def show_traj(analist=1, mode="group"):
     text = [[ "" for _ in range(7)] for _ in range(6)]
     vboard = fboard.copy()
     if trajs:
-        for i in range(len(trajs[0])):
-            vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), trajs[0][i], number=True)
+        min_traj = extract_min(trajs)
+        print(min_traj)
+        for i in range(len(min_traj)):
+            vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), min_traj[i], number=True)
             text[int(number/7)][number%7] = i+1
     #あとでｖに
     response_data = {
@@ -229,6 +241,100 @@ def show_vec(analist=1):
     }
 
     return jsonify(response_data)
+
+@app.route('/get_valids', methods=['POST'])
+def get_valids():
+    data = request.get_json()
+    fboard = np.array(data['board'], dtype=np.int32)
+    valids = system.game.getValidMoves(fboard, getCurrentPlayer(fboard))
+    valids = [i  for i in range(len(valids)) if valids[i]]
+    response_data = {
+        'valids': valids,
+    }
+    print(valids)
+    return jsonify(response_data)
+
+@app.route('/hot_traj', methods=['POST'])
+def hot_traj(analist = 1):
+    
+    data = request.get_json()
+    action = data['action']
+    fboard = np.array(data['board'], dtype=np.int32)
+    
+    traj = [action]
+    vboard, _ = game.getNextState(fboard, getCurrentPlayer(fboard), action)
+    _, _, atraj = detectHotState(vboard, analist, getStep(vboard)-1) # 一手勝手に打ってるから
+    vboard = fboard.copy()
+    traj.extend(atraj)
+    text = [[ "" for _ in range(7)] for _ in range(6)]
+    if traj:
+        vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[0], number=True)
+        text[int(number/7)][number%7] = "*"
+        for i in range(1, len(traj)):
+            vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[i], number=True)
+            text[int(number/7)][number%7] = i+1
+    response_data = {
+        'board': vboard.tolist(),
+        'text': text,
+    }
+    return jsonify(response_data)
+
+@app.route('/my_hot_traj', methods=['POST'])
+def my_hot_traj(analist = 1, mode="group"):
+    
+    data = request.get_json()
+    action = data['action']
+    fboard = np.array(data['board'], dtype=np.int32)
+    bstep = getStep(fboard)
+    traj = [action]
+    vboard, _ = game.getNextState(fboard, getCurrentPlayer(fboard), action)
+    trajs = my_hot_traj_sub(vboard, bstep, analist=analist, mode=mode) # 一手勝手に打ってるから
+    atraj = extract_min(trajs)
+    traj.extend(atraj)
+    vboard = fboard.copy()
+    text = [[ "" for _ in range(7)] for _ in range(6)]
+    if traj:
+        if traj[0] != -1:
+            vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[0], number=True)
+            text[int(number/7)][number%7] = "*"
+            for i in range(1, len(traj)):
+                vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[i], number=True)
+                text[int(number/7)][number%7] = i+1
+    response_data = {
+        'board': vboard.tolist(),
+        'text': text,
+    }
+    return jsonify(response_data)
+
+
+
+def extract_min(trajs):
+    min = 100
+    min_traj = None
+    for t in trajs:
+        tmp = len(t)
+        if len(t) < min:
+            min_traj = t
+            min = len(t)
+    
+    return min_traj
+    
+def my_hot_traj_sub(fboard, bstep, analist=1, mode="group"):
+    answer = hot_states_one_way(fboard.copy(), analist=analist, step=4, baseline=2, fix=bstep)
+    bfcount, bfdcount, new_trajs, gs4, gd2, groups, visual = answer
+    groups = dict(groups)
+    
+    traj = []
+    if mode == "group":
+        for g in gd2:
+            if str(g) in groups.keys():
+                traj.extend(groups[str(g)])
+    else:
+        for s in gs4:
+            for g in groups:
+                if s in g.eval():
+                    traj.extend(g)
+    return traj
 
 
 def check_frequent_traj(fboard, analist=1, mode="group"):
@@ -348,7 +454,7 @@ def check_convergence_per_board(board, reach, bstep, analist):
         bcount = 0
         bfcount = 0
         bfdcount = 0
-        #print(board)
+        print(board)
         hot = detectHotState(board.copy(), analist, bstep) # mode=traj, toend=True
         print(hot)
         #print(hot[1])
@@ -356,7 +462,7 @@ def check_convergence_per_board(board, reach, bstep, analist):
             return None, None, None
             
         end = game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
-        if end:
+        if abs(end) == 1:
             
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
@@ -418,15 +524,21 @@ def collect_promising_vector_sub(boards, key_c, analist, step=4, baseline=2, fix
             b = fboards[i]
             
             nboards = collect_promising_per_step(b, analist, baseline=baseline, fix=fix)
+            nboards = np.array(nboards)
+            if nboards.shape == (6, 7):
+                nboards = nboards[np.newaxis]
+               
+            
             for nb in nboards:
                 traj = copy.deepcopy(ftrajs[i])
                 a = system.detectAction(b, nb)
-                if mode != "vector":
-                    traj.append(a)
-                    
-                else:
-                    relative = detect_relative_distance(key_c, a)
-                    traj.append(relative)
+                if a != -1:
+                    if mode != "vector":
+                        traj.append(a)
+                        
+                    else:
+                        relative = detect_relative_distance(key_c, a)
+                        traj.append(relative)
                 new_trajs.append(traj)
                 
             new_boards.extend(nboards)
@@ -434,6 +546,14 @@ def collect_promising_vector_sub(boards, key_c, analist, step=4, baseline=2, fix
         return new_trajs, new_boards
 
 def collect_promising_per_step(board, analist, baseline=2, fix=-1):
+    if game.getGameEnded(board, getCurrentPlayer(board)):
+        fboards = []
+        for i in range(baseline):
+            fboards.append(board)
+        return fboards
+
+    #    return board こっちが終わり切り捨て番
+
     max_step = len(memory) - 1
     if analist == 0:
         analist = getCurrentPlayer(board)

@@ -42,10 +42,10 @@ dataset.make_board_set()
 # tmp_trajごとに一番多いベクトルと距離を取り出す
 analists = [-1, 1]
 steps = [1, 3, 5]
-print("analist, j, step, vector, distance, metric, size, traj_size, path_size")
+print("analist, pattern_name, step, vector, distance, metric, size, traj_size, path_size")
 for step in steps:
     for analist in analists: 
-        for j in range(len(dataset.path_set)-1):
+        for j in range(21):
         
             pattern_path_set = dataset.make_pattern_path_set(j)
             pattern_dataset = DatasetManager(game, pattern_path_set)
@@ -62,7 +62,7 @@ for step in steps:
                 distance = np.mean(np.array(dist_set))
             if vector and distance:
                 metric = abs(vector)*distance
-            print(f"{analist}, {j}, {step}, {vector}, {distance}, {metric}, {size}, {traj_size}, {path_size}")
+            print(f"{analist}, {pattern_dataset.pattern_name[j]}, {step}, {vector}, {distance}, {metric}, {size}, {traj_size}, {path_size}")
 
 
 

@@ -458,9 +458,14 @@ class System(object):
         return self.detectAction(pboard, cboard)
   
     def detectAction(self, pboard, cboard):
+        '''
+        変更ナシなら-1を返すように変更
+        '''
         pboard = np.array(pboard).reshape(1, -1)
         cboard = np.array(cboard).reshape(1, -1)
         compare = (pboard == cboard)[0].tolist()
+        if False not in compare:
+            return -1
         action = compare.index(False)
         return action % self.game.getActionSize()
         

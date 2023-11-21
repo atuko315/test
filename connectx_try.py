@@ -769,6 +769,8 @@ class System(object):
         pboard = np.array(pboard).reshape(1, -1)
         cboard = np.array(cboard).reshape(1, -1)
         compare = (pboard == cboard)[0].tolist()
+        if False not in compare:
+            return -1
         action = compare.index(False)
         return action % self.game.getActionSize()
         
@@ -1834,6 +1836,7 @@ class System(object):
         #print(board)
         #print(type(board))
         h = load_data(path)
+        
         tmp = h[step] # 注目する部分
         tboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
         
@@ -1885,8 +1888,10 @@ class System(object):
            
             valids = self.game.getValidMoves(vboard, vplayer)
             counts = self.getPastCount(path, step, vboard, analist)
-            
-
+            if sum(counts) == 0:
+                # edge
+                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                return result
             action = np.argmax(self.getPastActionProb(path, step, vboard, 
                                                       analist, counts = counts))
             traj.append(action)
@@ -1895,10 +1900,7 @@ class System(object):
                 result = (vboard, None) if mode == "board" else (vboard, None, traj)
                 return result
             
-            if sum(counts) == 0:
-                # edge
-                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                return result
+            
                 
             vnextBoard, vplayer = self.game.getNextState(vboard, vplayer, action)
             vcanonicalBoard = self.game.getCanonicalForm(vboard, -vplayer)

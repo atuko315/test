@@ -9,6 +9,24 @@
     background-color: #00A0FF; /* ボードの背景色 */
 }
 
+.cell-container {
+    width: 90%; /* セルの幅 */
+    height: 90%; /* セルの高さ */
+    border: 1px solid #000; /* セルの境界線 */
+    background-color: #FFF; /*空いているセルの背景色（白色） */
+    margin: 5%; /* 駒との間隔を設定 */
+    display: flex; /* フレックスボックスを使用して中央寄せ */
+    align-items: center; /* 垂直方向の中央寄せ */
+    justify-content: center; /* 水平方向の中央寄せ */
+    font-size: 16px; /* テキストのフォントサイズを設定 */
+    position: relative; /* 相対位置を指定 */
+
+    /* セル内のテキスト */
+    /* ::before または ::after 擬似要素を使用してセル内にテキストを挿入 */
+    content: "";
+    position: relative; /* 相対位置を指定 */
+}
+
 /* 各セル（マス目） */
 .cell {
     width: 90%; /* セルの幅 */
@@ -35,6 +53,18 @@
     transform: translate(-50%, -50%);/* テキストの色を指定 */
 }
 
+.cell::before {
+    content: ""; /* 擬似要素の内容を空に設定 */
+    position: absolute; /* 絶対位置を指定 */
+    top: 50%; /* 上からの位置（セルの中央に配置） */
+    left: 50%; /* 左からの位置（セルの中央に配置） */
+    transform: translate(-50%, -50%); /* 中央揃え */
+    width: 100%; /* 円の幅（調整してください） */
+    height: 100%; /* 円の高さ（調整してください） */
+    
+    background-color: var(--circle-color, #00FF00);  /* 円の背景色 */
+    z-index: var(--layer, -1);  /* 他の要素の上に表示するためのz-index */
+}
 /* 赤い駒（1）のセル */
 .cell.red {
     background-color: #FF0000;
