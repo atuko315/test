@@ -22,7 +22,7 @@ from random import uniform
 from time import sleep
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 
 game = Connect4Game()
 strong_timellimit = 5

@@ -21,7 +21,7 @@ from connectx_try import load_data, getCurrentPlayer
 from random import uniform
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 encoded_weights = encode_weight(sample_b_path)
 buffer = load_buffer(sample_b_path)
 game = Connect4Game()

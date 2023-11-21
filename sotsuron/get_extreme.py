@@ -22,7 +22,7 @@ from random import uniform
 from time import sleep
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 
 game = Connect4Game()
 strong_timellimit = 5
@@ -44,8 +44,9 @@ extreme = []
 for l in labels:
     ex_l = []
     count += 1
-    path = os.path.join("data", l[0], l[1])
+    path = os.path.join("label", imp_label[l[0]], imp_label[l[1]])
     for ph in phase:
+        path = os.path.join("label", imp_label [l[0]], imp_label [l[1]])
         tmp = []
         path = os.path.join(path, ph)
         path_set = sorted(Path(path).glob('*.board'))

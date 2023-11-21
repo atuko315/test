@@ -22,7 +22,7 @@ from random import uniform
 from time import sleep
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 
 game = Connect4Game()
 strong_timellimit = 5
@@ -33,5 +33,7 @@ sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timeli
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
 paths = sorted(Path('./data').glob('*.history'))
-for p in paths:
+count = 2000
+for i in range(count):
+    p = paths[i]
     sample_system.train_offline(p)
