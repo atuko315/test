@@ -1,0 +1,45 @@
+[11-18 11:28:28 MainThread @logger.py:242] Argv: 1117.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-18 11:28:30 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-18 11:28:30 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+30 9 188 66
+手番修正版
+analist: 1
+/usr/lib/python3/dist-packages/apport/report.py:13: DeprecationWarning: the imp module is deprecated in favour of importlib; see the module's documentation for alternative uses
+  import fnmatch, glob, traceback, errno, sys, atexit, imp, stat
+Traceback (most recent call last):
+  File "1117.py", line 57, in <module>
+    ave_bfrate, ave_bfdrate, size = dataset.collect_hot_results(sample_system, analist)
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 1630, in collect_hot_results
+    bfcount, bfdcount = self.hot_result(board, p, system, analist, mode="focus")
+  File "/home/student/PARL/benchmark/torch/AlphaZero/feature.py", line 1649, in hot_result
+    hot = system.detectHotState(board, analist, path, bstep, toend=True, mode=mode)
+  File "/home/student/PARL/benchmark/torch/AlphaZero/connectx_try.py", line 1839, in detectHotState
+    tmp = h[step] # 注目する部分
+IndexError: tuple index out of range
+[11-19 02:03:50 MainThread @logger.py:242] Argv: 1117.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-19 02:03:51 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-19 02:03:51 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+手番修正版
+analist: 1
+
+result: 1 0.2222222222222222 0.4722222222222222 9
+result: 2 0.5 0.875 2
+result: 3 0.3939393939393939 0.6186868686868687 99
+result: 4 0.375 0.65625 32
+
+result: 1 0.4444444444444444 0.4444444444444444 0.2222222222222222 0.4444444444444444 9
+result: 2 0.5 0.875 0.0 0.375 2
+result: 3 0.5050505050505051 0.5555555555555556 0.47474747474747475 0.5606060606060606 99
+result: 4 0.4375 0.6015625 0.28125 0.5 32
+
+result 0.3333333333333333 0.5 0.2152777777777778 0.6648148148148149 9
+result: 2 0.0 0.5 0.0625 1.0 2
+result: 3 0.2222222222222222 0.43434343434343436 0.2796717171717172 0.5686381800018165 99
+result: 4 0.15625 0.453125 0.314453125 0.5479065205627704 32

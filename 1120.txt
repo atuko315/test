@@ -1,0 +1,42 @@
+[11-20 18:55:52 MainThread @logger.py:242] Argv: 1120.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-20 18:55:54 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-20 18:55:54 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+手番修正版
+analist: 1 baseline:2 step:4 tail:3
+result: 1 0.3333333333333333 0.5 0.2152777777777778 0.6648148148148149 9
+result: 2 0.0 0.5 0.0625 1.0 2
+result: 3 0.2222222222222222 0.43434343434343436 0.2796717171717172 0.5686381800018165 99
+result: 4 0.15625 0.453125 0.314453125 0.5479065205627704 32
+[11-21 09:58:09 MainThread @logger.py:242] Argv: 1120.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-21 09:58:11 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-21 09:58:11 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+手番修正版
+analist: 1 baseline:2 step:4 tail:3
+result: 1 0.2222222222222222 0.3333333333333333 0.20833333333333334 0.8022486772486773 9
+result: 2 0.0 0.5 0.375 0.5555555555555556 2
+result: 3 0.25252525252525254 0.4797979797979798 0.2588383838383838 0.6026823064701855 99
+result: 4 0.125 0.3828125 0.298828125 0.6144717261904763 32
+[11-22 17:42:15 MainThread @logger.py:242] Argv: 1120.py
+/home/student/.local/lib/python3.8/site-packages/torch/cuda/__init__.py:107: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+[11-22 17:42:17 MainThread @__init__.py:44] PARL detects two backend frameworks: paddle, torch. Use paddle by default.
+[11-22 17:42:17 MainThread @__init__.py:45] To use torch as backend, `export PARL_BACKEND=torch` before running the scripts.
+/home/student/PARL/benchmark/torch/AlphaZero/connect4_game.py:232: DeprecationWarning: tostring() is deprecated. Use tobytes() instead.
+  return board.tostring()
+30 9 188 66
+手番修正版
+analist: 1 baseline:2 step:4 tail:3
+result: 1 0.2222222222222222 0.3611111111111111 0.20833333333333334 0.7936507936507937 9
+result: 2 0.0 0.5 0.40625 0.5333333333333333 2
+result: 3 0.25252525252525254 0.4797979797979798 0.26136363636363635 0.5992591863803988 99
+result: 4 0.125 0.3828125 0.298828125 0.6144717261904763 32

@@ -1011,7 +1011,8 @@ class DatasetManager(object):
         trajs, boards = self.collect_promising_vector_sub(board, key_c, path, system, analist, step, baseline, fix = getStep(board))
         return trajs
     
-    def collect_promising_vector_sub(self, boards, key_c, path, system, analist, step, baseline=3, fix=-1, mode="vector"):
+    def collect_promising_vector_sub(self, boards, key_c, path, system, analist, step, baseline=3, fix=-1, mode="vector", action=-1):
+
         new_trajs = []
         new_boards = []
         if step == 1:
@@ -1020,7 +1021,10 @@ class DatasetManager(object):
             for b in boards:
                 a = system.detectAction(board, b)
                 if mode != "vector":
-                    new_trajs.append([a])
+                    if action != -1:
+                        new_trajs.append([action, a])
+                    else:
+                        new_trajs.append([a])
                     continue
                 relative = self.detect_relative_distance(key_c, a)
                 new_trajs.append([relative])
@@ -1127,7 +1131,94 @@ class DatasetManager(object):
 
         #print(len(trajs), len(tails)/len(trajs))
         return tails
+    
+    def hot_convergence(self, boards, reach, path, bstep, system, analist, tail=3, btraj=None):
+        '''
+        終局に至る分岐のうちもっとも優先順位が高いものと同じ結果になる分岐をまとめて返す　ついでにテイルのまとまり率や　それの投票数も返す
+        '''
+        gd = defaultdict(lambda: 0)
+        trajs = []
+        groups = defaultdict(lambda: [])
+        size = len(boards)
+        if size < 1:
+            return [], [], []
         
+        c=0
+        bcount = 0
+        bfcount = 0
+        bfdcount = 0
+        index = 0
+        rate = 0
+        trate = 0
+        hot_result = []
+        for b in boards:
+            #print(f"{c}/{size}")
+            
+            group, stones, traj = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode="traj")
+           
+            if btraj[index]:
+                if traj:
+                    btraj[index].extend(traj)
+                
+                traj = btraj[index]
+                
+                index += 1
+                trajs.append(traj)
+                   
+                    
+                    # 正解だけならここをいじる 
+                
+            if group:
+                if len(hot_result) == 0:
+                    hot_result = group
+                    #print(hot_result)
+                for g in group:
+                    
+                    gd[str(g)] += 1
+                    if traj:
+                        groups[str(g)].append(traj)       
+               
+
+        #print(groups)
+        max_vote = 0
+        most_hot = []
+        for g in hot_result:
+            tmp = gd[str(g)]
+            if tmp > max_vote:
+                max_vote = tmp
+                most_hot = g
+        #print(most_hot)
+        hot_trajs = groups[str(most_hot)]
+
+        height, width = self.game.getBoardSize()
+        #print(visual)
+        
+        
+        gd_sorted = sorted(dict(gd).items(), reverse=True, key=lambda x : x[1])
+        #print(gd_sorted)
+        rate = len(hot_trajs) / 16
+        trate = 0
+        
+        #print(most_hot)
+        if len(hot_trajs) > 0:
+            tails = self.extract_traj_tail(hot_trajs, threshold=tail)
+            trate = len(tails) / len(hot_trajs)
+            #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
+            fu = np.unique(most_hot.copy()).tolist() if most_hot else [-1]
+            ru = np.unique(reach.copy()).tolist() if reach else [-2]
+            #print(fu, ru)
+            bfdcount = 0
+            bfcount = 0
+            if len(set(ru)) > 0:
+                bfdcount = (len(set(fu) & set(ru))) / 4
+            #print(fu, ru, len(set(fu) & set(ru)))つくる
+            
+
+            
+            if set(fu).issubset(set(ru)):
+                bfcount = 1
+        #print(bfcount, bfdcount, hot_trajs, rate, trate)
+        return bfcount, bfdcount, hot_trajs, rate, trate
 
     
     def check_convergence(self, boards, reach, path, bstep, system, analist, mode="analysis", btraj=None):
@@ -1158,17 +1249,22 @@ class DatasetManager(object):
         bfcount = 0
         bfdcount = 0
         index = 0
+        hot_result = []
 
         for b in boards:
             #print(f"{c}/{size}")
             if mode == "show" or mode == "focus" or mode == "traj":
                 if mode == "traj":
                     group, stones, traj = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode=mode)
-                   
-                    if traj and btraj[index]:
-                        btraj[index].extend(traj)
+                    if len(hot_result) == 0:
+                        hot_result = group
+                        print(hot_result)
+                    if btraj[index]:
+                        if traj:
+                            btraj[index].extend(traj)
+                        
                         traj = btraj[index]
-                       
+                        
                         index += 1
                         trajs.append(traj)
                    
@@ -1387,6 +1483,93 @@ class DatasetManager(object):
 
         #print("success")
         return result
+    def collect_hot_trajs(self, system, analist, baseline, step, fix=-1, tail=3):
+        '''
+        表示ありならはじめの言って入れる
+        '''
+        size = 0
+        ave_rate = 0
+        ave_bfrate = 0
+        ave_bfdrate = 0
+        ave_trate = 0
+        tsize = 0
+
+        for p in self.path_set:
+            content = load_data(p)
+            if len(content) < 5:
+                importance, board, brance, fpath = content
+            else:
+                imp, board, branch, fpath, importance = content
+
+            if getStep(board) < 15 or getStep(board) > 20:
+                continue
+            #if abs(analist) == 1:
+            #    if getCurrentPlayer(board) != analist:
+            #        continue
+
+            size += 1
+            bfcount, bfdcount, hot_trajs, rate, trate = self.hot_trajs( board, p, system, analist, baseline, step, fix=fix, tail=tail)
+            ave_bfrate += bfcount
+            ave_bfdrate += bfdcount
+            
+            if rate > 0:
+                ave_rate += rate
+                tsize += 1
+                ave_trate += trate
+        
+        if size == 0:
+            return 0, 0, 0, 0, 0
+        
+        ave_bfrate /= size
+        ave_bfdrate /= size
+        ave_rate /= tsize
+        ave_trate /= tsize
+        
+        return ave_bfrate, ave_bfdrate, ave_rate, ave_trate, size
+    
+    def hot_trajs(self, board, path, system, analist, baseline, step, fix=-1, tail=3):
+        '''
+        step分先のを集めてそこからはhotstatesつまり、step分先の盤面数
+        path step の stepはbstep
+        collect: 絞り込みありで先読み
+        check_convergence: 絞り込みなし
+        '''
+        assert step > 0
+       
+        reach = self.detect_actual_reach(path, system)
+        #print(reach)
+        bstep = getStep(board)
+        if fix != -1:
+            bstep = fix
+    
+        content = load_data(path)
+        if len(content) < 5:
+            importance, vboard, brance, fpath = content
+        else:
+            imp, vboard, branch, fpath, importance = content
+        
+        
+        boards = self.collect_promising_per_step(board, path, system, analist, baseline=2, fix = bstep)
+        action = system.detectAction(board, boards[-1])
+        boards = board[-1]
+        
+        
+        height, width = self.game.getBoardSize()
+        latest = system.getLatest(fpath, bstep)
+        key_c = latest % width
+        btrajs, boards = self.collect_promising_vector_sub(board, key_c, path, system, analist, step, baseline=baseline, fix=fix, mode="normal", action=action)
+        new_trajs = []
+        
+        if not btrajs:
+            return None
+        
+        
+        bfcount, bfdcount, hot_trajs, rate, trate = self.hot_convergence(boards, reach, fpath, bstep, system, analist, tail=tail, btraj=btrajs)
+            
+            # そこまでとつなぎ合わせる
+            #print(bfcount, bfdcount, trajs, gs4, gd2, groups)
+        return bfcount, bfdcount, hot_trajs, rate, trate
+
         
             
     
@@ -1517,8 +1700,8 @@ class DatasetManager(object):
             
             #if getCurrentPlayer(board) != analist:
             #    continue
-            if getStep(board) < 15 or getStep(board) > 20:
-                    continue
+            #if getStep(board) < 15 or getStep(board) > 20:
+            #        continue
             size += 1
             
             if mode == "focus":
@@ -1696,7 +1879,581 @@ class DatasetManager(object):
         elif mode == "focus":
             #print(bfcount, bfdcount)
             return bfcount, bfdcount
+    
+    def collect_two_ways_cache(self, system, analist, step=3, baseline=1, promising=3,mode="compare"):
+        #size = len(self.path_set)
+        #print(f"size: {size}")
+        size = 0
+        ave_brate = 0
+        ave_bfrate = 0
+        ave_bfdrate = 0
+
+        ave_srate = 0
+        ave_sfrate = 0
+        ave_sfdrate = 0
+        
+        for p in self.path_set:
+            content = load_data(p)
+            
+            if len(content) < 5:
+                importance, board, brance, fpath = content
+            else:
+                imp, board, branch, fpath, importance = content
+
+            #if getStep(board) < 15 or getStep(board) > 20:
+            #        continue
+            h = load_data(fpath)
+            #print(p, fpath)
+
+            tmp = h[len(h)-2]
+            fboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
+            
+            valid = self.game.getValidMoves(fboard, getCurrentPlayer(fboard))
+            valid = [i  for i in range(len(valid)) if valid[i]]
+            reach = []
+            for a in valid:
+                vboard = self.add_stone(fboard.copy(), getCurrentPlayer(fboard), a)
+                vf = system.detectFatalStone(vboard, per_group=True)
+                if vf:
+                    reach.extend(vf)
+            memory = h[getStep(board)]
+            size += 1
+            
+            if mode == "focus":
+                bfcount, bfdcount, sfcount, sfdcount = self.hot_states_two_ways_cache(board, memory, reach, system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+                #print(bfcount, bfdcount, sfcount, sfdcount)
+                ave_bfrate += bfcount
+                ave_bfdrate += bfdcount
+                ave_sfrate += sfcount
+                ave_sfdrate += sfdcount
+                continue
+            brate, bfrate, bfdrate, srate, sfrate, sfdrate = self.hot_states_two_ways_cache(board, memory, reach, system, analist, step=step, baseline=baseline, promising=promising)
+            
+
+            ave_brate += brate
+            ave_bfrate += bfrate
+            ave_bfdrate += bfdrate
+            ave_srate += srate
+            ave_sfrate += sfrate
+            ave_sfdrate += sfdrate
+        
+        if size == 0:
+            if mode == "focus":
+                return 0, 0, 0, 0, 0
+            return 0, 0, 0, 0, 0, 0, 0
+        
+        ave_brate /= size
+        ave_bfrate /= size
+        ave_bfdrate /= size
+        ave_srate /= size
+        ave_sfrate /= size
+        ave_sfdrate /= size
+        if mode == "focus":
+            return ave_bfrate, ave_bfdrate, ave_sfrate, ave_sfdrate, size
+        return ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size
+    
+    def hot_states_two_ways_cache(self, board, memory, reach, system, analist, step=4, baseline=6, promising=2, mode="focus"):
+       
+        
+        valid = system.game.getValidMoves(board, getCurrentPlayer(board))
+        valid = [i  for i in range(len(valid)) if valid[i]]
+        if len(valid) < baseline+1:
+            # これもとりあえず最下位をわたしとく
+            baseline = len(valid) - 1
+        #if len(valid) < top+1:
+        #    top = len(valid) - 1
+        
+     
+
+        tmp_boards = self.collect_promising_per_step_cache(board, memory, system, analist, baseline=baseline)
+        best_board = tmp_boards[-1]
+        #best_board = tmp_boards[-top]
+        second_board = tmp_boards[-baseline]
+        
+        #best = system.getImportantAction(board, analist, fpath, getStep(board), 0)
+        #second = system.getImportantAction(board, analist, fpath, getStep(board), baseline)
+        #best_board = self.add_stone(board.copy(), getCurrentPlayer(board), best)
+        #second_board = self.add_stone(board.copy(), getCurrentPlayer(board), second)
+
+        if mode == "focus":
+            bfcount, bfdcount = self.hot_states_one_way_cache(best_board,system, analist,  memory, reach, step=step, baseline=promising, mode="focus")
+            sfcount, sfdcount = self.hot_states_one_way_cache(second_board, system, analist, memory, reach, step=step, baseline=promising, mode="focus")
+            return bfcount, bfdcount, sfcount, sfdcount
+
+
+        brate, bfrate, bfdrate = self.hot_states_one_way_cache(best_board,system, analist,  memory, reach, step=step, baseline=promising)
+        srate, sfrate, sfdrate = self.hot_states_one_way_cache(second_board, system, analist, memory, reach, step=step, baseline=promising)
+        #print(brate, bfrate, bfdrate, srate, sfrate, sfdrate)
+        #print("*****************************************")
+        return brate, bfrate, bfdrate, srate, sfrate, sfdrate
+    
+    def collect_one_way_cache(self, system, analist, step=3, promising=3):
+            '''
+            こっちはfocusnのみ、データはステップが確定した時点でそれだけを行う
+            '''
+            #size = len(self.path_set)
+            #print(f"size: {size}")
+            size = 0
+            ave_brate = 0
+            ave_bfrate = 0
+            ave_bfdrate = 0
+
+            
+            for p in self.path_set:
+                content = load_data(p)
+                if len(content) < 5:
+                    importance, board, brance, fpath = content
+                else:
+                    imp, board, branch, fpath, importance = content
+
+                if getStep(board) < 15 or getStep(board) > 20:
+                    continue
+                #if abs(analist) == 1:
+                #    if getCurrentPlayer(board) != analist:
+                #        continue
+                h = load_data(fpath)
+
+                tmp = h[len(h)-2]
+                fboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
+                
+                valid = self.game.getValidMoves(fboard, getCurrentPlayer(fboard))
+                valid = [i  for i in range(len(valid)) if valid[i]]
+                reach = []
+                for a in valid:
+                    vboard = self.add_stone(fboard.copy(), getCurrentPlayer(fboard), a)
+                    vf = system.detectFatalStone(vboard, per_group=True)
+                    if vf:
+                        reach.extend(vf)
+                memory = h[getStep(board)]
+                size += 1
+               
+               
+                bfcount, bfdcount = self.hot_states_one_way_cache(board, system, analist, memory, reach, step=step, baseline=promising, mode="focus")
+                ave_bfrate += bfcount
+                ave_bfdrate += bfdcount
+   
+            if size == 0:
+                return 0, 0
+    
+            ave_brate /= size
+            ave_bfrate /= size
+            ave_bfdrate /= size
+          
+            return ave_bfrate, ave_bfdrate, size
+    
+    def hot_states_one_way_cache(self, board, system, analist, memory, reach,  step=3, baseline=2, mode="focus"):
+        '''
+        focusとtrajのみ
+        '''
+        assert step > 0
+       
+       
+        
+        
+        #board = self.collect_promising_per_step(board, path, system, analist, baseline=2, fix = bstep)
+        #board = board[-1]
+        
+        if mode != "traj":
+            boards = self.collect_promising_cache(board, memory, system, analist, step, baseline=baseline)
+        else:
+            height, width = self.game.getBoardSize()
+            
+            btrajs, boards = self.collect_promising_vector_sub_cache(board, 0, memory, system, analist, step, baseline=baseline, mode="normal")
+            new_trajs = []
            
+            if not btrajs:
+                return None
+        
+        
+        if mode == "focus":
+            bfcount, bfdcount = self.check_convergence_cache(boards, reach, memory, system, analist, mode="focus")
+            return bfcount, bfdcount
+        elif mode == "traj":
+            bfcount, bfdcount, trajs, gs4, gd2, groups = self.check_convergence_cache(boards, reach, memory, system, analist, mode="traj", btraj=btrajs)
+            
+            # そこまでとつなぎ合わせる
+            #print(bfcount, bfdcount, trajs, gs4, gd2, groups)
+            return bfcount, bfdcount, trajs, gs4, gd2, groups
+    
+    def check_convergence_cache(self, boards, reach, memory, system, analist, mode="focus", btraj=None):
+        
+        gd = defaultdict(lambda: 0)
+        gs = defaultdict(lambda: 0)
+        trajs = []
+        groups = defaultdict(lambda: [])
+        size = len(boards)
+
+        if size < 1:
+            if mode == "focus":
+                return  0, 0
+            elif mode == "traj":
+                return 0, 0, 0
+            
+        #print(size)
+        c=0
+        bcount = 0
+        bfcount = 0
+        bfdcount = 0
+        index = 0
+        hot_result = []
+
+        for b in boards:
+            #print(f"{c}/{size}")
+            if mode == "focus" or mode == "traj":
+                if mode == "traj":
+                    group, stones, traj = self.check_convergence_per_board_cache(b, reach, memory, system, analist, mode=mode)
+                    if len(hot_result) == 0:
+                        hot_result = group
+                        #print(hot_result)
+                    if btraj[index]:
+                        if traj:
+                            btraj[index].extend(traj)
+                        
+                        traj = btraj[index]
+                        
+                        index += 1
+                        trajs.append(traj)
+                   
+                    
+                    # 正解だけならここをいじる 
+                else:
+                    group, stones = self.check_convergence_per_board_cache(b, reach, memory, system, analist, mode=mode)
+                if group:
+                    for g in group:
+                        
+                        gd[str(g)] += 1
+                        if mode == "traj" and traj:
+                            groups[str(g)].append(traj)
+
+                if stones:
+                    for s in stones:
+                        gs[s] += 1
+                
+                continue
+
+
+                
+            c+=1
+            bc, bf, bfd  = self.check_convergence_per_board_cache(b, reach, memory, system, analist, mode=mode)
+            bcount += bc
+            bfcount += bf
+            bfdcount += bfd
+        
+        
+        if mode == "focus" or mode == "traj":
+            height, width = self.game.getBoardSize()
+            visual = [0 if i not in collections.Counter(gs).keys() else collections.Counter(gs)[i]
+                        for i in range(height * width)]
+            visual = np.array(visual).reshape(height, width)
+            #print(visual)
+            
+            gs_sorted = sorted(dict(gs).items(), reverse=True, key=lambda x : x[1])
+            
+            if len(gs_sorted) < 4:
+                gs4 = [gs_sorted[i][0] for i in range(len(gs_sorted))]
+            else:
+                gs4 = [gs_sorted[i][0] for i in range(4)]
+            gd_sorted = sorted(dict(gd).items(), reverse=True, key=lambda x : x[1])
+            #print(gd_sorted)
+            if len(gd_sorted) < 2:
+                gd2 = [gd_sorted[i][0] for i in range(len(gd_sorted))]
+            else:
+                gd2 = [gd_sorted[i][0] for i in range(2)]
+            gd2 = [eval(g) for g in gd2]
+            
+            #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
+            fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
+            ru = np.unique(reach.copy()).tolist() if reach else [-2]
+            bfdcount = 0
+            bfcount = 0
+            if len(set(ru)) > 0:
+                bfdcount = (len(set(fu) & set(ru))) / 4
+            #print(fu, ru, len(set(fu) & set(ru)))つくる
+            if gd2:
+                for g in gd2:
+                    for i in range(len(reach)):
+                        r = reach[i]
+                        if set(r).issubset(set(g)):
+                            bfcount = 1
+            if mode == "focus":
+                return bfcount, bfdcount
+            else:
+                #print( bfcount, bfdcount, trajs, gs4, gd2, groups)
+                return bfcount, bfdcount, trajs, gs4, gd2, groups
+    
+    def check_convergence_per_board_cache(self, board, reach, memory, system, analist, mode="focus"):
+        bcount = 0
+        bfcount = 0
+        bfdcount = 0
+        #print(board)
+        hot = self.detectHotStateCache(board, analist, memory, toend=True, mode=mode)
+
+        #print(hot[1])
+        if hot[1] == None:
+            if mode == "focus":
+                return None, None
+            elif mode == "traj":
+                return None, None, None
+            return bcount, bfcount, bfdcount
+        
+        end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
+        if end:
+            #print("reach")
+            #print(reach)
+            
+            bcount = 1
+            fatal = system.detectFatalStone(hot[0], per_group=True)
+            fu = np.unique(fatal.copy()).tolist() if fatal else []
+            if mode == "show" or mode == "focus":
+                return fatal, fu
+            elif mode == "traj":
+                return fatal, fu, hot[2]
+            
+            #print("fatal")
+            #print(fatal)
+            fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
+            ru = np.unique(reach.copy()).tolist() if reach else [-2]
+            if len(set(ru)) > 0:
+                bfdcount = (len(set(fu) & set(ru))) / 4
+            #print(fu, ru, len(set(fu) & set(ru)))つくる
+            if fatal:
+                for g in fatal:
+                    for i in range(len(reach)):
+                        r = reach[i]
+                        if set(r).issubset(set(g)):
+                            bfcount = 1
+                '''
+                gs = str(g)
+                #print(fatal_group.keys())
+                if gs not in fatal_group.keys():
+                    fatal_group[gs] = 1
+                else:
+                    fatal_group[gs] += 1
+                '''
+        if mode == "show":
+            return [], []
+        elif mode == "focus":
+            return bfcount, bfdcount
+        elif mode == "traj":
+            return bfcount, bfdcount, hot[2]
+        return bcount, bfcount, bfdcount      
+    
+    def detectHotStateCache(self, board, analist, memory, toend=True, mode="traj"):
+        '''
+        thresholdはvalue同士の同じとみなされる最大のライン
+        1か-1になった盤面もしくは木の果ての部分
+        edgeが０、judgeが１, endが-1
+        打てる所がない、そもそも登録されてないはNone
+        limit: defaultは100(制限なし)
+        toendがTrueだとjudgeで最後までいく
+        '''
+        zflag = True if analist == 0 else False
+        tboard, sNsa, bNsa, sv, bv, sVs, bVs = memory
+        
+        traj = []
+
+        #print(board)
+        #print(type(board))
+    
+        curPlayer = getCurrentPlayer(board)
+        
+        vboard = board.copy()
+        vcanonicalBoard = self.game.getCanonicalForm(vboard, curPlayer)
+        vs = self.game.stringRepresentation(vcanonicalBoard)
+        
+        
+        vstep = getStep(board) # countは差分で得られる
+        if zflag:
+            analist = getCurrentPlayer(board)
+        counts = self.getPastCountCache(vboard, analist, memory)
+        #print(self.getPastValueNoModification( path, step, vboard, 1))
+        if self.game.getGameEnded(board, curPlayer):
+            #judge
+            result = (board, -1) if mode == "board" else (board, -1, traj)
+            return result
+        
+        
+        if analist == 1:
+            if vs not in sVs.keys():
+                result = (None, None) if mode == "board" else (None, None, None)
+                return result
+        else:
+            if vs not in bVs.keys():
+                result = (None, None) if mode == "board" else (None, None, None)
+                return result
+      
+        
+        vplayer = curPlayer
+    
+        while True:
+            if zflag:
+                analist = vplayer
+
+            #print(vboard)
+            #print(vvalue)
+            #print("--------")
+
+           
+            valids = self.game.getValidMoves(vboard, vplayer)
+            counts = self.getPastCountCache(vboard, analist, memory)
+            if sum(counts) == 0:
+                # edge
+                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                return result
+            action = np.argmax(counts)
+            traj.append(action)
+                
+            if valids[action] == 0:
+                result = (vboard, None) if mode == "board" else (vboard, None, traj)
+                return result
+            
+            
+                
+            vnextBoard, vplayer = self.game.getNextState(vboard, vplayer, action)
+            vcanonicalBoard = self.game.getCanonicalForm(vboard, -vplayer)
+            vs = self.game.stringRepresentation( vcanonicalBoard)
+           
+            vstep += 1
+            if analist == 1:
+                if vs not in sVs.keys():
+                    # edge
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
+            else:
+                if vs not in bVs.keys():
+                    # edge
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
+                
+           
+            
+          
+            if self.game.getGameEnded(vnextBoard, vplayer):
+                # end
+                result = (vnextBoard, -1) if mode == "board" else (vnextBoard, -1, traj)
+                return result
+            
+            vboard = vnextBoard
+           
+
+    
+
+
+    
+    def collect_promising_vector_sub_cache(self, board, key_c, memory, system, analist, step, baseline=2, mode="normal", action=-1):
+        new_trajs = []
+        new_boards = []
+        if step == 1:
+            board = boards
+            boards = self.collect_promising_per_step_cache(board, memory, system, analist, baseline=baseline)
+            for b in boards:
+                a = system.detectAction(board, b)
+                if mode != "vector":
+                    if action != -1:
+                        new_trajs.append([action, a])
+                    else:
+                        new_trajs.append([a])
+                    continue
+                relative = self.detect_relative_distance(key_c, a)
+                new_trajs.append([relative])
+        
+            return new_trajs, boards
+        
+        ftrajs, fboards = self.collect_promising_vector_sub_cache(boards, key_c, memory, system, analist, step-1, baseline, mode=mode) # actionは引き継がなくていい
+       
+        for i in range(len(ftrajs)):
+            traj = copy.deepcopy(ftrajs[i])
+            b = fboards[i]
+            
+            nboards = self.collect_promising_per_step_cache(b, memory, system, analist, baseline=baseline)
+            nboards = np.array(nboards)
+            if nboards.shape == (6, 7):
+                nboards = nboards[np.newaxis]
+            for nb in nboards:
+                traj = copy.deepcopy(ftrajs[i])
+                a = system.detectAction(b, nb)
+                if mode != "vector":
+                    traj.append(a)
+                    
+                else:
+                    relative = self.detect_relative_distance(key_c, a)
+                    traj.append(relative)
+                new_trajs.append(traj)
+                
+            new_boards.extend(nboards)
+        
+        return new_trajs, new_boards
+
+    
+    def collect_promising_cache(self, board, memory, system, analist, step, baseline=2):
+        assert step > 0
+        boards = []
+        boards = self.collect_promising_per_step_cache(board.copy(), memory, system, analist, baseline=baseline)
+        if step == 1:
+            return boards
+        result = []
+        for b in boards:
+            tmp = self.collect_promising_cache(b.copy(), memory, system, analist, step-1, baseline=baseline)
+            #if tmp.shape == (6, 7):
+            #    tmp = tmp[np.newaxis]
+            if len(tmp) > 0:
+                result.extend(tmp)
+
+        #print("success")
+        return result
+    
+    def collect_promising_per_step_cache(self, board, memory, system, analist, baseline=2):
+        
+
+        #if self.game.getGameEnded(board, getCurrentPlayer(board)):
+        #    return board
+        
+        
+        if analist == 0:
+            analist = getCurrentPlayer(board)
+        valid = self.game.getValidMoves(board, getCurrentPlayer(board))
+        valid = [i  for i in range(len(valid)) if valid[i]]
+        l = len(valid) if len(valid) < baseline else baseline
+        #print(fpath, getStep(board))
+        bstep = getStep(board)
+        
+        counts = self.getPastCountCache(board, analist, memory)
+        counts = np.argsort(np.array(counts)) #[1, 2, 3]
+
+        counts = [c for c in counts if c in valid]
+        counts = counts[-l:]
+        fboards = []
+
+        for c in counts:
+                fboards.append(system.add_stone(board.copy(), getCurrentPlayer(board), c))
+    
+        return fboards
+            
+    
+    def getPastCountCache(self, board, analist, memory):
+        '''
+        analist: 手番とは区別、どちらを先番にするかにかかわらず１がｓ、ー１がｂ
+        '''
+      
+        
+        zboard, sNsa, bNsa, sv, bv, sVs, bVs = memory
+        curPlayer = getCurrentPlayer(board)
+       
+        canonicalBoard= self.game.getCanonicalForm(board, curPlayer)
+        s = self.game.stringRepresentation(canonicalBoard)
+        
+        if analist == 1:
+            counts = [
+                sNsa[(s, a)] if (s, a) in sNsa else 0
+                for a in range(self.game.getActionSize())
+            ]
+        else:
+            
+            counts = [
+                bNsa[(s, a)] if (s, a) in bNsa else 0
+                for a in range(self.game.getActionSize())
+            ]
+        return counts
     
     
         

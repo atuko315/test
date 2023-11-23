@@ -1894,6 +1894,7 @@ class System(object):
                 return result
             action = np.argmax(self.getPastActionProb(path, step, vboard, 
                                                       analist, counts = counts))
+            
             traj.append(action)
                 
             if valids[action] == 0:
