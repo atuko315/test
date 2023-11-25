@@ -46,15 +46,43 @@ print(len(paths1), len(paths2), len(paths3), len(paths4))
 
 
 analist = 1
-
+baseline = 2
+step = 4
+tail = 3
 print("手番修正版")
-print(f"analist: {analist}")
+print(f"analist: {analist} baseline:{baseline} step:{step} tail:{tail}")
 for  i in range(len(paths)):
-    
+    if i != 3:
+        continue
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
-    ave_bfrate, ave_bfdrate, size = dataset.collect_hot_results_cache(sample_system, analist)
-    print(f"result: {i+1} {ave_bfrate} {ave_bfdrate} {size}")
+    for p in paths[i]:
+        content = load_data(p)
+        if len(content) < 5:
+            importance, board, brance, fpath = content
+        else:
+            imp, board, branch, fpath, importance = content
+        
+        h = load_data(fpath)
+        tmp = h[len(h)-2]
+        fboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
+        
+        valid = game.getValidMoves(fboard, getCurrentPlayer(fboard))
+        valid = [i  for i in range(len(valid)) if valid[i]]
+        reach = []
+        for a in valid:
+            vboard = dataset.add_stone(fboard.copy(), getCurrentPlayer(fboard), a)
+            vf = sample_system.detectFatalStone(vboard, per_group=True)
+            if vf:
+                reach.extend(vf)
+        memory = h[getStep(board)]
+
+        ra = dataset.hot_states_one_way_cache(board, sample_system, analist, memory, reach, step, baseline, mode="traj")
+        rb = dataset.hot_trajs_cache( board, memory, reach, sample_system, analist, baseline, step, tail=tail)
+        print("--------")
+        
+
+
     #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

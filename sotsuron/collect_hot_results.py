@@ -46,15 +46,18 @@ print(len(paths1), len(paths2), len(paths3), len(paths4))
 
 
 analist = 1
-
-print("手番修正版")
-print(f"analist: {analist}")
+step = 2
+baseline = 6
+promising = 4
+print(" 1と6")
+print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):
     
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
-    ave_bfrate, ave_bfdrate, size = dataset.collect_hot_results_cache(sample_system, analist)
-    print(f"result: {i+1} {ave_bfrate} {ave_bfdrate} {size}")
+    #ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
+    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_hot_results(sample_system, analist, mode="focus")
+    print(f"result: {i+1} {bfcount} {bfdcount} {sfcount} {sfdcount} {size}")
     #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

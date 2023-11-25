@@ -1900,8 +1900,8 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            #if getStep(board) < 15 or getStep(board) > 20:
-            #        continue
+            if getStep(board) < 15  or getStep(board) > 20:
+                    continue
             h = load_data(fpath)
             #print(p, fpath)
 

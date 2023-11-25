@@ -20,7 +20,7 @@ from collections import defaultdict
 #factor = 31
 
 sample_s_path = '/home/student/PARL/benchmark/torch/AlphaZero/best_200.pth.tar'
-sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/saved_model/checkpoint_1.pth.tar'
+sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.tar'
 
 game = Connect4Game()
 strong_timellimit = 5
@@ -53,16 +53,16 @@ print(dataset.hot_states_one_way(board, path, sample_system, 1, 3, 2, mode="focu
 
 
 analist = 1
-step = 3
+step = 2
 baseline = 6
-promising = 2
+promising = 4
 print("middle")
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):    
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
-    answer = dataset.collect_one_way(sample_system, analist, step=step, promising=promising, mode="focus")
+    answer = dataset.collect_one_way_cache(sample_system, analist, step=step, promising=promising)
     ave_bfrate, ave_bfdrate, size = answer
     print(f"{i+1} {ave_bfrate} {ave_bfdrate}")
 

@@ -49,11 +49,9 @@ analist = 1
 step = 2
 baseline = 6
 promising = 4
-print(" 1と２")
+print(" 1と6")
 print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
 for  i in range(len(paths)):
-    if i!=3:
-        continue
     
     #次の一手がどっちの手番かで分けるべき
     #つまり相手の力量を打ちながら計る必要がある？？？？
