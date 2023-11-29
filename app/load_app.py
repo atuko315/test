@@ -5,6 +5,14 @@ from connect4_game import Connect4Game
 import collections
 from collections import defaultdict
 import copy
+import pickle
+import pathlib
+import os
+from pathlib import Path 
+from pathlib import PosixPath
+def load_data(path):
+    with path.open(mode='rb') as f:
+        return pickle.load(f)
 sample_s_path = './best_200.pth.tar'
 sample_b_path = './checkpoint_1.pth.tar'
 
@@ -20,9 +28,37 @@ app = Flask(__name__)
 
 # global 変数
 board = game.getInitBoard()
-memory = []
+phases = ["short", "middle", "long"]
+imp_label = ["important", "trivial"]
+labels = [[0, 0], [0, 1], [1, 0], [1, 1]]
+label = 1
+phase = 1
+paths = os.path.join("../sotsuron/label", imp_label[labels[label][0]], imp_label[labels[label][0]], phases[phase])
+print("start")
+paths = sorted(Path(paths).glob('*.board'))
+
+number = np.random.randint(0, len(paths))
+print(number)
+content = load_data(paths[number])
+
+print(type(paths[number]))
+if len(content) < 5:
+    importance, board, brance, fpath = content
+else:
+    imp, board, branch, fpath, importance = content
+
+point = getStep(board)
+print("point")
+print(point)
+print(fpath)
+fpath = PosixPath(os.path.join("../sotsuron", fpath))
+fpath = PosixPath("../sotsuron/offdata/20231110072937.history")
+memory = load_data(fpath)
+
+memory = memory[0:len(memory)-1]
 system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timellimit,
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
+
 turn = [-1, 0, 1]
 answer = defaultdict(lambda:[])
 # とりあえず人間先番、強いAI後番で
@@ -30,9 +66,11 @@ answer = defaultdict(lambda:[])
 # 各セルのクラスを設定するための辞書
 cell_class = {1: 'red', -1: 'yellow', 0: 'white'}
 
+
+
 @app.route('/')
 def connect4():
-    return render_template('board.html', board=np.transpose(board), cell_class=cell_class)
+    return render_template('load_board.html', board=np.transpose(board), cell_class=cell_class)
 
 
 @app.route('/get_board')
@@ -69,25 +107,20 @@ def update_board():
 def turn_of_AI():
     global board
     global memory
+    global system
     print("memory", len(memory))
     data = request.get_json()
     board = np.array(data['board'], dtype=np.int32)
-    #analist = data['analist']
+    analist = data['analist']
     player = getCurrentPlayer(board)
     canonicalboard = game.getCanonicalForm(board.copy(), player)
-    action = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
-    
-    if analist == 1:
-        action = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
-    else:
-        action = np.argmax(system.b_mcts.getActionProb(canonicalboard, temp=0))
-    
-    #saction = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
-    #waction = np.argmax(system.b_mcts.getActionProb(canonicalboard, temp=0))
-    #action = saction if analist == 1 else waction
+    saction = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
+    waction = np.argmax(system.b_mcts.getActionProb(canonicalboard, temp=0))
+    action = saction if analist == 1 else waction
     memory.append([board.copy(), system.s_mcts.Nsa.copy(), system.b_mcts.Nsa.copy(), None, None, system.s_mcts.V.copy(), system.b_mcts.V.copy()])
     next_board, next_player = game.getNextState(board, getCurrentPlayer(board), action) 
     result = game.getGameEnded(next_board, next_player)
+    print(result)
     if result != 0:
         next_board = game.getInitBoard()
         
@@ -107,11 +140,11 @@ def turn_of_AI():
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    global memory
+    
     global system
     global board
     global answer
-    memory = []
+   
     answer = defaultdict(lambda:[])
     system.reset_mcts()
     board = game.getInitBoard()
@@ -755,7 +788,7 @@ def detectHotState(board, analist, step):
                 # edge
                 result = (vboard, 0, traj)
                 return result
-                
+        print(counts)
         #print(self.getPastValueNoModification( path, step, vboard, 1))
         if game.getGameEnded(board, curPlayer):
             #judge
@@ -785,6 +818,7 @@ def detectHotState(board, analist, step):
            
             valids = game.getValidMoves(vboard, vplayer)
             counts = getPastCount(step, vboard, analist)
+            print(counts)
 
             if sum(counts) == 0:
                 # edge

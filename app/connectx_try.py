@@ -108,6 +108,17 @@ class System(object):
         
         self.data = [] #v of tearcher, v of student,
         # n of tearcher at that point, n of student at that point
+    def perturbateStone(self, board, n):
+        rboard = board.copy()
+        height, width = self.game.getBoardSize()
+        if board[int(n/width)][n%width] == 1:
+            rboard[int(n/width)][n%width] = 0.5
+        elif board[int(n/width)][n%width] == -1:
+            rboard[int(n/width)][n%width] = -0.5
+        else:
+            board[int(n/width)][n%width] = choice([1, -1]) * 0.5
+        return rboard
+
     def saliency_map(self, board, analist, mode="policy",path=-1, step=-1):
         #countにするのは真ん中に不利なので今回policyはニューロだけに
         height, width = self.game.getBoardSize()
