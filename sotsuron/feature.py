@@ -1925,21 +1925,68 @@ class DatasetManager(object):
         if not standard:
             return None
         
-        trajs = groups[str(gd2[0])]
+        standard_trajs = groups[str(gd2[0])]
         ave_length = 0
-        for t in trajs:
-            ave_length += len(trajs)
-        
+        if trajs:
+            for t in trajs:
+                ave_length += len(trajs)
+            ave_length /= len(trajs)
         if ave_length > 4:
             long_flag = True
         #短期＜ー＞長期　でガクッと下がる分岐を返す 
         fatals = []
+        data = []
         for c in counts:
             if c == best:
                 continue
+            vboard, _ = self.game.getNextState(board.copy(), getCurrentPlayer(board), c)
+            answer = self.hot_states_one_way_cache(vboard, system, analist, memory, reach, step, baseline, mode="traj", action=c)
+            bfcount, bfdcount, trajs, gs4, gd2, groups = answer
+            tmp = []
+            trajs = []
+            if gd2:
+                tmp = gd2[0]
+                trajs = groups[tmp]
+            ave_length = 0
+            if trajs:
+                for t in trajs:
+                    ave_length += len(trajs)
+                ave_length /= len(trajs)
+            
+            similarity = self.cal_bfdcount(standard, tmp)
+            data.append(tmp, trajs, ave_length, similarity)
 
+    def cal_fcount(fatal, reach):
+        fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
+        ru = np.unique(reach.copy()).tolist() if reach else [-2]
+        bfcount = 0
+        
+        if fatal:
+                for g in fatal:
+                    for i in range(len(reach)):
+                        r = reach[i]
+                        if set(r).issubset(set(g)):
+                            bfcount = 1
+            
+        if ru == [-2] and fu == [-1]:
+            bfcount = 1
+        
+        return bfcount
 
+    def cal_bfdcount(fatal, reach):
+        fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
+        ru = np.unique(reach.copy()).tolist() if reach else [-2]
+        bfdcount = 0
     
+        if len(set(ru)) > 0:
+            bfdcount = (len(set(fu) & set(ru))) / 4
+
+        if ru == [-2] and fu == [-1]:
+            bfdcount = 1
+        
+        return bfdcount
+
+
     def collect_hot_results_cache(self, system, analist, mode="focus"):
         size = 0
         ave_brate = 0
