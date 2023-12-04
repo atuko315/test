@@ -74,6 +74,9 @@ for l in labels:
 
     extreme.append(ex_l)     
 
+for i in range(4):
+    print(len())
+
 # extreme [[[1short], [1middle], [1long]], [[2short], ...], [[3short], ...], [[4short], ...]]         
                 
                  

@@ -82,10 +82,7 @@
     background-color: #FFF;
     border-radius: 50%; /* 丸い形にする */
 }
-.cell.gradient{
-    background: linear-gradient(to bottom, #FF0000, #FF9999); /* 赤から淡い赤へのグラデーション */
-    border-radius: 50%; /* 丸い形にする */
-}
+
 .message {
     /* メッセージ用のスタイル設定 */
     display: none; /* 初期状態では非表示 */

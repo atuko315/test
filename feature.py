@@ -1958,9 +1958,9 @@ class DatasetManager(object):
             
             if len(fatal) > 1:
                 size = len(fatal)
-                a = np.random.randint(0, size-1)
+                #a = np.random.randint(0, size-1)
                 
-                fatal = fatal[a]
+                #fatal = fatal[a]
                 #print(a, size, fatal)
             #print("fatal")
             #print(fatal)
@@ -1969,7 +1969,7 @@ class DatasetManager(object):
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
             #print(fu, ru, len(set(fu) & set(ru)))つくる
-            '''
+            
             if fatal:
                 for g in fatal:
                     for i in range(len(reach)):
@@ -1981,6 +1981,7 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(fu)):
                             bfcount = 1  
+            '''
               
             #print(reach, fatal, bfcount, bfdcount)
             return bfcount, bfdcount
@@ -1989,7 +1990,7 @@ class DatasetManager(object):
             #print(bfcount, bfdcount)
             return bfcount, bfdcount
     
-    def collect_hot_trajs_cache(self, system, analist, baseline, step, fix=-1, tail=3):
+    def collect_hot_trajs_cache(self, system, analist, baseline, step, fix=-1, tail=3, vote=False):
         '''
         表示ありならはじめの言って入れる
         '''
@@ -2032,7 +2033,7 @@ class DatasetManager(object):
             
             
             
-            bfcount, bfdcount, hot_trajs, rate, trate = self.hot_trajs_cache( board, memory, reach, system, analist, baseline, step, fix=fix, tail=tail)
+            bfcount, bfdcount, hot_trajs, rate, trate = self.hot_trajs_cache( board, memory, reach, system, analist, baseline, step, fix=fix, tail=tail, vote=vote)
             if bfcount != -1:
                 ave_bfrate += bfcount
                 ave_bfdrate += bfdcount
@@ -2218,8 +2219,7 @@ class DatasetManager(object):
         focusとtrajのみ
         '''
         assert step > 0
-       
-       
+        
         
         action = -1
         b = self.collect_promising_per_step_cache(board, memory, system, analist, baseline=2)
@@ -2231,6 +2231,7 @@ class DatasetManager(object):
         btrajs = []
         if mode != "traj":
             boards = self.collect_promising_cache(board, memory, system, analist, step, baseline=baseline)
+            
         else:
             height, width = self.game.getBoardSize()
             
@@ -2260,7 +2261,7 @@ class DatasetManager(object):
             #print(bfcount, bfdcount, trajs, gs4, gd2, groups)
             return bfcount, bfdcount, trajs, gs4, gd2, groups
     
-    def hot_trajs_cache(self, board, memory, reach, system, analist, baseline, step, fix=-1, tail=3):
+    def hot_trajs_cache(self, board, memory, reach, system, analist, baseline, step, fix=-1, tail=3, vote=False):
         '''
         step分先のを集めてそこからはhotstatesつまり、step分先の盤面数
         path step の stepはbstep
@@ -2295,14 +2296,14 @@ class DatasetManager(object):
         btrajs = new_trajs
         #print(btrajs)
         
-        bfcount, bfdcount, hot_trajs, rate, trate = self.hot_convergence_cache(boards, reach, memory, system, analist, tail=tail, btraj=btrajs)
+        bfcount, bfdcount, hot_trajs, rate, trate = self.hot_convergence_cache(boards, reach, memory, system, analist, tail=tail, btraj=btrajs, vote=vote)
             
             # そこまでとつなぎ合わせる
             #print(bfcount, bfdcount, trajs, gs4, gd2, groups)
         return bfcount, bfdcount, hot_trajs, rate, trate
     
     
-    def hot_convergence_cache(self, boards, reach, memory, system, analist, tail=3, btraj=None):
+    def hot_convergence_cache(self, boards, reach, memory, system, analist, tail=3, btraj=None, vote=False):
         '''
         終局に至る分岐のうちもっとも優先順位が高いものと同じ結果になる分岐をまとめて返す　ついでにテイルのまとまり率や　それの投票数も返す
         '''
@@ -2369,6 +2370,12 @@ class DatasetManager(object):
         
         
         gd_sorted = sorted(dict(gd).items(), reverse=True, key=lambda x : x[1])
+        #print(len(hot_trajs), gd_sorted[0][1])
+        if vote and len(hot_trajs) < gd_sorted[0][1]:
+            #print("minority")
+            hot_trajs = groups[gd_sorted[0][0]]
+            most_hot = eval(gd_sorted[0][0])
+            #print(type(most_hot))
         #print(gd_sorted)
         rate = len(hot_trajs) / end_count
         rate = gd_sorted[0][1]
@@ -2376,10 +2383,10 @@ class DatasetManager(object):
         
         #print(most_hot)
         if len(hot_trajs) > 0:
-            #tails = self.extract_traj_tail(hot_trajs, threshold=tail)
-            #trate = len(tails) / len(hot_trajs)
-            tails = self.extract_traj_tail(groups[gd_sorted[0][0]], threshold=tail)
-            trate = len(tails)
+            tails = self.extract_traj_tail(hot_trajs, threshold=tail)
+            trate = len(tails) / len(hot_trajs)
+            #tails = self.extract_traj_tail(groups[gd_sorted[0][0]], threshold=tail)
+            #trate = len(tails)
             #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
             fu = np.unique(most_hot.copy()).tolist() if most_hot else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
@@ -2396,12 +2403,12 @@ class DatasetManager(object):
             #print(bfcount, bfdcount)
 
             
-            if set(fu).issubset(set(ru)):
-                bfcount = 1
+            #if set(fu).issubset(set(ru)):
+            #    bfcount = 1
         #print(bfcount, bfdcount, len(hot_trajs), gd_sorted[0], end_count,  reach)
-        if len(hot_trajs) < gd_sorted[0][1]:
-            bfcount = -1
-            bfdcount = -1
+        #if len(hot_trajs) < gd_sorted[0][1]:
+        #    bfcount = -1
+        #    bfdcount = -1
 
         return bfcount, bfdcount, hot_trajs, rate, trate
 
@@ -2493,6 +2500,7 @@ class DatasetManager(object):
             gd2 = [eval(g) for g in gd2]
             
             #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
+            #gs4 = gd2[0]
             #fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
@@ -2501,7 +2509,7 @@ class DatasetManager(object):
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
             #print(fu, ru, len(set(fu) & set(ru)))つくる
-            '''
+            
             if gd2:
                 for g in gd2:
                     for i in range(len(reach)):
@@ -2514,6 +2522,7 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            '''
 
             if mode == "focus":
                 return bfcount, bfdcount

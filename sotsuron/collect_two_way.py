@@ -57,7 +57,8 @@ for  i in range(len(paths)):
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
     #ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_two_ways_cache(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+    answer = dataset.collect_two_ways_cache(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+    bfcount, bfdcount, sfcount, sfdcount, size = answer
     print(f"result: {i+1} {bfcount} {bfdcount} {sfcount} {sfdcount} {size}")
     #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

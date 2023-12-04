@@ -34,7 +34,7 @@
         var trajs = [];
         var analist = 1;
         var turns = [0, 0, -1];
-        var method = [2, 1];
+        var method = "traj";
        
         var player = 1;
 
@@ -333,9 +333,16 @@
                 result = data.gameResult;
                 player = data.player
                 
-                if (result != 0){
+                if (result != 0){ 
                     
-                    showMessage("end");
+                    if (result == -1){
+                        showMessage("Red Win");
+                    }else if(result == 1){
+                        showMessage("Yellow Win");
+                    }else{
+                        showMessage("draw");
+                    }
+
                     document.getElementById("game-board").addEventListener('click', function() {
                         hideMessage();
                     });
@@ -420,7 +427,7 @@
             var messageContainer = document.getElementById("message-container");
             messageContainer.style.display = "none";
         }
-        function startTrajMode(){
+        function startHotTrajMode(){
             //var buttonContainer = document.getElementById("button-container");
             fetch('/get_valids', {
                 method: 'POST',
@@ -435,7 +442,7 @@
                 // 例: 更新されたボードを表示
                 valids = data.valids; // サーバーからのデータでboard変数を更新
                 endTrajs();
-                createButton("traj mode", EndTrajMode)
+                createButton("close traj mode", EndTrajMode)
                 console.log("valid");
                 var buttonContainer = document.getElementById("button-container");
                 for (  var i = 0;  i < valids.length;  i++  ) {
@@ -453,11 +460,51 @@
                             event.preventDefault(); // デフォルトのイベントをキャンセル
                             //console.log("button");
                             //console.log(innerText);
-                            if(method[0]==1){
-                                MyHotTraj(Number(innerText));
-                            }else{
-                                HotTraj(Number(innerText));
-                            }
+                            HotTraj(Number(innerText));
+                            //MyHotTraj(Number(innerText));
+                            //HotTraj(Number(innerText));
+                        };
+                    }(button.innerText);
+                    buttonContainer.appendChild(button);
+                }
+                    
+                });
+            
+        }
+        function startMyHotTrajMode(){
+            //var buttonContainer = document.getElementById("button-container");
+            fetch('/get_valids', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+            })
+            .then(response => response.json())
+            .then(data => {
+                // サーバーからの応答を処理
+                // 例: 更新されたボードを表示
+                valids = data.valids; // サーバーからのデータでboard変数を更新
+                endTrajs();
+                createButton("close traj mode", EndTrajMode)
+                console.log("valid");
+                var buttonContainer = document.getElementById("button-container");
+                for (  var i = 0;  i < valids.length;  i++  ) {
+                    console.log(valids[i]);
+                    action = valids[i];
+                    
+                   
+                    //console.log("create")
+                    var button = document.createElement("button");
+                    button.id = String(action);
+                    button.innerText = String(action);
+                    button.onclick = function(innerText) {
+                        return function(event) {
+                            endTrajs();
+                            event.preventDefault(); // デフォルトのイベントをキャンセル
+                            //console.log("button");
+                            //console.log(innerText);
+                            MyHotTraj(Number(innerText));
                             //MyHotTraj(Number(innerText));
                             //HotTraj(Number(innerText));
                         };
@@ -484,6 +531,13 @@
                 text = data.text;
                 fatal = data.fatal;
                 tail = data.tail;
+                curPlayer = -getStep(board)
+                if (turns[0] == 0){
+                    turn = 1
+                }else{
+                    turn = -1
+                }
+                showMessage(String(turn*curPlayer*data.value))
 
                 renderTraj(fboard, text, fatal, tail, cell_class);
                 
@@ -509,10 +563,17 @@
                 trajs = data.trajs;
                 console.log(trajs);
                 traj_number = 0;
-                traj_size = traj.length;
+                traj_size = trajs.length;
+                curPlayer = -getStep(board)
+                if (turns[0] == 0){
+                    turn = 1
+                }else{
+                    turn = -1
+                }
+                showMessage(String(turn*curPlayer*data.value))
                 renderTraj(fboard, text, fatal, tail, cell_class);
                 
-                //multiTraj();
+                multiTraj();
           
             });
         }
@@ -585,6 +646,7 @@
 
 
         }
+        
         function startFeedback(){
             fetch('/start_feedback', {
                 method: 'POST',
@@ -595,19 +657,19 @@
             })
             .then(response => response.json())
             .then(data => {
-                //console.log("feedback")
+                console.log("feedback")
                 board = data.board;
-                EndFeedback();
-                //createButton("forward", forwardOne);
-                //createButton("back", backOne);
+                EndFeedback()
+                createButton("forward", forwardOne);
+                createButton("back", backOne);
+                createButton("normal", bactToNormal)
                 //createButton("traj", showTraj);
-
-                createButton("traj", startTrajMode);
-                createButton("vec", showVec);
-                if (method[1] == 1){
-                    createButton("map", fatal_map);
+                if (method == "traj"){
+                    createButton("Traj 1", startHotTrajMode);
+                    createButton("Traj 2", startMyHotTrajMode);
                 }else{
-                    createButton("map", saliency_map);
+                    createButton("Map 1", fatal_map);
+                    createButton("Map 2", saliency_map);
                 }
                 renderBoard(board, cell_class);
                 
@@ -616,23 +678,26 @@
            
             
         }
+        
         function EndFeedback(){
             endTrajs();
             EndTrajMode();
             removeButton("forward");
             removeButton("back");
-            removeButton("traj");
-            removeButton("vec");
-            removeButton("map");
-            
+            removeButton("normal")
+            removeButton("Traj 1");
+            removeButton("Traj 2");
+            removeButton("Map 1");
+            removeButton("Map 2");
         }
         function EndTrajMode(){
             endTrajs();
+            removeButton("traj mode");
+            removeButton("close traj mode")
             for(var i = 0; i < 7; i++ ){
                 removeButton(String(i));
             }
-            removeButton("traj mode");
-            removeButton("close traj mode")
+            
         }
 
         function createButton(text, onclick){
@@ -677,8 +742,15 @@
                 board = data.board; // サーバーからのデータでboard変数を更新
                 counts = data.counts;
                 renderBoard(board, cell_class); // ボードを再描画
-                //showMessage(String(counts));
-                console.log(counts)
+                
+                if (turns[0] == 0){
+                    turn = 1
+                }else{
+                    turn = -1
+                }
+                curPlayer = getStep(board)
+                
+                showMessage("counts: "+ String(counts) + " value: " +  String(turn*curPlayer*data.value));
             });
 
         }
@@ -698,9 +770,36 @@
                 board = data.board; // サーバーからのデータでboard変数を更新
                 counts = data.counts;
                 renderBoard(board, cell_class); // ボードを再描画
-                showMessage(String(counts));
+              
+                if (turns[0] == 0){
+                    console.log(true)
+                    turn = 1
+                }else{
+                    turn = -1
+                }
+                curPlayer = getStep(board)
+                showMessage("counts: "+ String(counts) + " value: " +  String(turn*curPlayer*data.value));
             });
             
+        }
+        function bactToNormal(){
+            renderBoard(board, cell_class);
+        }
+        function getStep(fboard){
+            step = 0
+            for(i=0;i<fboard.length; i++){
+                for(j=0;j<fboard[0].length;j++){
+                    if(fboard[i][j] != 0){
+                        step++;
+                    }
+                }
+            }
+            console.log(step)
+            if (step%2==0){
+                return 1
+            }else{
+                return -1
+            }
         }
         function showTraj(analist=1, mode="group"){
             fetch('/show_traj', {

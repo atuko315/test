@@ -30,6 +30,8 @@ weak_puct = 0.1
 sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timellimit,
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
+
+
 paths1 = sorted(Path('./label/important/important/middle').glob('*.board'))
 paths2 = sorted(Path('./label/important/trivial/middle').glob('*.board'))
 paths3 = sorted(Path('./label/trivial/important/middle').glob('*.board'))
