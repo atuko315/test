@@ -732,7 +732,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+                body: JSON.stringify({'board': board, 'analist':analist}) // board変数をJSONに変換して送信
             })
             .then(response => response.json())
             .then(data => {
@@ -760,7 +760,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({'board': board}) // board変数をJSONに変換して送信
+                body: JSON.stringify({'board': board, 'analist':analist}) // board変数をJSONに変換して送信
             })
             .then(response => response.json())
             .then(data => {
