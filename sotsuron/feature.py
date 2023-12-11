@@ -1268,7 +1268,7 @@ class DatasetManager(object):
                     group, stones, traj = self.check_convergence_per_board(b, reach, path, bstep, system, analist, mode=mode)
                     if len(hot_result) == 0:
                         hot_result = group
-                        print(hot_result)
+                        #print(hot_result)
                     if btraj[index]:
                         if traj:
                             btraj[index].extend(traj)
@@ -1400,7 +1400,7 @@ class DatasetManager(object):
             return bcount, bfcount, bfdcount
         
         end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
-        if end:
+        if end != 0:
             #print("reach")
             #print(reach)
             
@@ -1825,7 +1825,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            if getStep(board) < 15 or getStep(board) > 20:
+            if getStep(board) < 15:
                 continue
             #if abs(analist) == 1:
             #    if getCurrentPlayer(board) != analist:
@@ -1902,9 +1902,9 @@ class DatasetManager(object):
             #print(bfcount, bfdcount)
             return bfcount, bfdcount
     
-    def difference_cache(self, board, system, analist, memory, reach, step=2, baseline=4):
+    def difference_cache(self, board, system, analist, memory, reach, step=2, baseline=4, threshold=4):
         # 最も良い選択肢のgd2[0]を基準にし、そこからの近さを判断　二番目に良い手ですら　０とかやったらその手は一択系なんやと　どこかでガクッと変わるんやったらそこが重要
-        #　長さにも注目　4　短期か長期か　短期的なのは局所的　長期的な手は大局的 手数大差なかったらおなじようなもんとかんがえていよい
+        #　長さにも注目　4　短期か長期か　短期的なのは局所的　長期的な手は大局的 手数大差なかったらおなじようなもんとかんがえてよい
         valid = self.game.getValidMoves(board, getCurrentPlayer(board))
         valid = [i  for i in range(len(valid)) if valid[i]]
         #print(fpath, getStep(board))
@@ -1931,11 +1931,12 @@ class DatasetManager(object):
             for t in trajs:
                 ave_length += len(trajs)
             ave_length /= len(trajs)
-        if ave_length > 4:
+        if ave_length > threshold:
             long_flag = True
         #短期＜ー＞長期　でガクッと下がる分岐を返す 
         fatals = []
-        data = []
+        short_data = []
+        long_data = []
         for c in counts:
             if c == best:
                 continue
@@ -1953,8 +1954,31 @@ class DatasetManager(object):
                     ave_length += len(trajs)
                 ave_length /= len(trajs)
             
-            similarity = self.cal_bfdcount(standard, tmp)
-            data.append(tmp, trajs, ave_length, similarity)
+            similarity = self.cal_fdcount(standard, tmp)
+            if ave_length < threshold:
+                short_data.append(tmp, trajs, ave_length, similarity)
+            else:
+                long_data.append(tmp, trajs, ave_length, similarity)
+            
+        if (not short_data) and (not long_data):
+            return None  
+        
+        
+        # ave_length が違うグループから最もsimilarityが低いものをとりだす
+        # ave_lengthが違うグループが無い場合、同グループの最もsimilarityが低いものをとりだす
+        if long_flag:
+            data = short_data if short_data else long_data
+        else:
+            data = long_data if long_data else short_data
+        
+        sim = [x[3] for x in data]
+        arg = np.argsort(np.array(sim))
+
+        dis_traj = data[arg][1]
+
+        return dis_traj
+
+
 
     def cal_fcount(fatal, reach):
         fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
@@ -1973,7 +1997,7 @@ class DatasetManager(object):
         
         return bfcount
 
-    def cal_bfdcount(fatal, reach):
+    def cal_fdcount(fatal, reach):
         fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
         ru = np.unique(reach.copy()).tolist() if reach else [-2]
         bfdcount = 0
@@ -2000,8 +2024,8 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            #if getStep(board) < 15:
-            #    continue
+            if getStep(board) < 15:
+                continue
             #if abs(analist) == 1:
             #    if getCurrentPlayer(board) != analist:
             #        continue
@@ -2041,7 +2065,7 @@ class DatasetManager(object):
         bfcount = 0
         bfdcount = 0
         
-        hot = self.detectHotStateCache(board, analist, memory, toend=True, mode=mode)
+        hot = self.detectHotStateCache(board, analist, memory, system, toend=True, mode=mode)
 
         #print(hot[1])
         if hot[1] == None:
@@ -2069,6 +2093,7 @@ class DatasetManager(object):
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
+            bfdcount = min(1, bfdcount)
             #print(fu, ru, len(set(fu) & set(ru)))つくる
             
             if fatal:
@@ -2181,7 +2206,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            if getStep(board) < 15 or getStep(board) > 20:
+            if getStep(board) < 15:
                     continue
             h = load_data(fpath)
             tmp = h[len(h)-2]
@@ -2200,7 +2225,7 @@ class DatasetManager(object):
             
             if mode == "focus":
                 bfcount, bfdcount, sfcount, sfdcount = self.hot_states_two_ways_cache(board, memory, reach, system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
-                print(bfcount, bfdcount, sfcount, sfdcount)
+                #print(bfcount, bfdcount, sfcount, sfdcount)
                 ave_bfrate += bfcount
                 ave_bfdrate += bfdcount
                 ave_sfrate += sfcount
@@ -2613,7 +2638,8 @@ class DatasetManager(object):
             gd2 = [eval(g) for g in gd2]
             
             #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
-            #gs4 = gd2[0]
+            if gd2:
+                gs4 = gd2[0]
             #fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
@@ -2621,6 +2647,7 @@ class DatasetManager(object):
             bfcount = 0
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
+            bfdcount = min(1, bfdcount)
             #print(fu, ru, len(set(fu) & set(ru)))つくる
             
             if gd2:
@@ -2653,9 +2680,9 @@ class DatasetManager(object):
         bfcount = 0
         bfdcount = 0
         #print(board)
-        hot = self.detectHotStateCache(board, analist, memory, toend=True, mode=mode)
+        hot = self.detectHotStateCache(board, analist, memory, system, toend=True, mode=mode)
 
-        #print(hot[1])
+        #print(hot)
         if hot[1] == None:
             if mode == "focus":
                 return None, None
@@ -2664,7 +2691,7 @@ class DatasetManager(object):
             return bcount, bfcount, bfdcount
         
         end = self.game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
-        if end:
+        if end != 0:
             #print("reach")
             #print(reach)
             
@@ -2709,7 +2736,7 @@ class DatasetManager(object):
             return bfcount, bfdcount, hot[2]
         return bcount, bfcount, bfdcount      
     
-    def detectHotStateCache(self, board, analist, memory, toend=True, mode="traj"):
+    def detectHotStateCache(self, board, analist, memory, system, toend=True, mode="traj", neuro=False):
         '''
         thresholdはvalue同士の同じとみなされる最大のライン
         1か-1になった盤面もしくは木の果ての部分
@@ -2743,15 +2770,15 @@ class DatasetManager(object):
             result = (board, -1) if mode == "board" else (board, -1, traj)
             return result
         
-        
-        if analist == 1:
-            if vs not in sVs.keys():
-                result = (None, None) if mode == "board" else (None, None, None)
-                return result
-        else:
-            if vs not in bVs.keys():
-                result = (None, None) if mode == "board" else (None, None, None)
-                return result
+        if not neuro:
+            if analist == 1:
+                if vs not in sVs.keys():
+                    result = (None, None) if mode == "board" else (None, None, None)
+                    return result
+            else:
+                if vs not in bVs.keys():
+                    result = (None, None) if mode == "board" else (None, None, None)
+                    return result
       
         
         vplayer = curPlayer
@@ -2769,9 +2796,18 @@ class DatasetManager(object):
             counts = self.getPastCountCache(vboard, analist, memory)
             if sum(counts) == 0:
                 # edge
-                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                return result
-            action = np.argmax(counts)
+                if not neuro:
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
+                
+                canonicalBoard = self.game.getCanonicalForm(vboard, getCurrentPlayer(vboard))
+                if analist == 1:
+                    p, v = system.s_mcts.nn_agent.predict(canonicalBoard)
+                else:
+                    p, v = system.b_mcts.nn_agent.predict(canonicalBoard)
+                action = np.argmax(p)
+            else:
+                action = np.argmax(counts)
             traj.append(action)
                 
             if valids[action] == 0:
@@ -2785,18 +2821,19 @@ class DatasetManager(object):
             vs = self.game.stringRepresentation( vcanonicalBoard)
            
             vstep += 1
-            if analist == 1:
-                if vs not in sVs.keys():
-                    # edge
-                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                    return result
-            else:
-                if vs not in bVs.keys():
-                    # edge
-                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                    return result
-                
-           
+            if not neuro:
+                if analist == 1:
+                    if vs not in sVs.keys():
+                        # edge
+                        result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                        return result
+                else:
+                    if vs not in bVs.keys():
+                        # edge
+                        result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                        return result
+                    
+            
             
           
             if self.game.getGameEnded(vnextBoard, vplayer):
@@ -2873,7 +2910,7 @@ class DatasetManager(object):
         #print("success")
         return result
     
-    def collect_promising_per_step_cache(self, board, memory, system, analist, baseline=2):
+    def collect_promising_per_step_cache(self, board, memory, system, analist, baseline=2, neuro=False):
         
 
         #if self.game.getGameEnded(board, getCurrentPlayer(board)):
@@ -2890,6 +2927,20 @@ class DatasetManager(object):
         
         counts = self.getPastCountCache(board, analist, memory)
         #print(counts)
+        if sum(counts) == 0:
+            if not neuro:
+                fboards = []
+                for i in range(baseline):
+                    fboards.append(board)
+                return fboards
+            
+            canonicalBoard = self.game.getCanonicalForm(board, getCurrentPlayer(board))
+            if analist == 1:
+                p, v = system.s_mcts.nn_agent.predict(canonicalBoard)
+            else:
+                p, v = system.b_mcts.nn_agent.predict(canonicalBoard)
+            counts = p
+            
         counts = np.argsort(np.array(counts)) #[1, 2, 3]
         #print(counts)
 

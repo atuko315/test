@@ -25,5 +25,5 @@ weak_puct = 0.1
 sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timellimit,
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
-paths = sorted(Path('./offdata').glob('*.history'))
+paths = sorted(Path('./poffdata').glob('*.history'))
 print(len(paths))

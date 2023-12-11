@@ -97,6 +97,7 @@
     left: 50%; /* 左からの位置（中央に寄せるため） */
     transform: translateX(-50%); /* 水平方向に中央に寄せる */
 }
+
 .overlay-rectangle {
     position: absolute;
     top: 5px; /* 上からの位置（調整してください） */
@@ -106,3 +107,25 @@
     background-color: rgba(0, 255, 0, 0.5);/* 緑色の背景色 */
     z-index: 1; /* 他の要素の上に表示するためのz-index */
 }
+
+.button {
+    width: 80px;
+    height: 50px;
+}
+
+.button-sub {
+    width: 60px;
+    height: 30px;
+}
+
+.button-container {
+    display: flex;
+    flex-direction: row; /* 縦に並べる */
+    align-items: center; /* 中央寄せ */
+    gap: 10px; /* ボタン間の間隔を適切な値に調整してください */
+    width: 400px; /* ボードの幅（調整してください） */
+    height: 100px; /* ボードの高さ（調整してください） */
+    bottom: 0; /* 画面下部に配置 */
+    left: 0;
+}
+

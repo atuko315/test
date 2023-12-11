@@ -21,6 +21,8 @@ import bisect
 import torch
 import torch.nn as nn
 import math
+import pickle
+from datetime import datetime
 
 
 
@@ -28,6 +30,32 @@ import math
 #mcts_weak_args = dotdict({'numMCTSSims': 0, 'cpuct': 0.1})
 #weak_timelimit = 1
 # arg一応この最終版でいいかな？？
+def write_data(history, offline=False, p=False):
+  now = datetime.now()
+  os.makedirs('./data/', exist_ok=True)
+  path = './data/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
+      now.year, now.month, now.day, now.hour, now.minute, now.second)
+  if offline == True:
+      os.makedirs('./offdata/', exist_ok=True)
+      path = './offdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
+          now.year, now.month, now.day, now.hour, now.minute, now.second)
+  if p == True:
+      os.makedirs('./pdata/', exist_ok=True)
+      path = './pdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
+          now.year, now.month, now.day, now.hour, now.minute, now.second)
+  with open(path, mode='wb') as f:
+    pickle.dump(history, f)
+
+def store_data(data, dirname):
+    path = './'+dirname
+    now = datetime.now()
+    path += '/{:04}{:02}{:02}{:02}{:02}{:02}.board'.format(
+        now.year, now.month, now.day, now.hour, now.minute, now.second)
+    with open(path, mode='wb') as f:
+      pickle.dump(data, f)
+def load_data(path):
+    with path.open(mode='rb') as f:
+        return pickle.load(f)
 
 
 
@@ -835,13 +863,15 @@ class System(object):
             #print(step)
             tmp = []
             board, sNsa, bNsa, sv, bv, sVs, bVs = h[step]
+            print(board)
             tmp.append(board)
             #curPlayer = getStep(board)
             canonicalBoard = self.game.getCanonicalForm(board, curPlayer)
             s = self.game.stringRepresentation(canonicalBoard)
             mcts_players[curPlayer + 1].getActionProb(canonicalBoard)
             dir_noise = mcts_players[curPlayer + 1].dirichlet_noise
-            v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
+            #内包が良い
+            #v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
             if dual == True:
                 kv = mcts_players[-curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
             tmp.append(self.s_mcts.Nsa.copy())
@@ -869,7 +899,7 @@ class System(object):
          
         self.data.append([self.turn, self.s_link, self.b_link, self.strong_timelimit, 
                          self.weak_timelimit, self.strong_puct, self.weak_puct])
-        write_data(self.data, offline=True)
+        #write_data(self.data, offline=True)
             
             
             
@@ -946,7 +976,8 @@ class System(object):
             tmp.append(self.s_mcts.Nsa.copy())
             tmp.append(self.b_mcts.Nsa.copy())
                   
-            cp, cv = mcts_players[-curPlayer+1].nn_agent.predict(canonicalBoard)
+            #cp, cv = mcts_players[-curPlayer+1].nn_agent.predict(canonicalBoard)
+            cp, cv = mcts_players[curPlayer+1].nn_agent.predict(canonicalBoard)
             if curPlayer != self.turn:
                 tmp.append(-self.s_mcts.V[s])
                 if s in self.b_mcts.V.keys():

@@ -42,6 +42,7 @@ class MCTS():
 
     def getActionProb(self, canonicalBoard, temp=1, timelimit=4.9, vc=False):
         """
+        
         This function performs numMCTSSims simulations of MCTS starting from
         canonicalBoard.
 

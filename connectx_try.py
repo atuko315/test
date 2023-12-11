@@ -38,8 +38,8 @@ def write_data(history, offline=False, p=False):
   path = './data/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
       now.year, now.month, now.day, now.hour, now.minute, now.second)
   if offline == True:
-      os.makedirs('./offdata/', exist_ok=True)
-      path = './offdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
+      os.makedirs('./poffdata/', exist_ok=True)
+      path = './poffdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
           now.year, now.month, now.day, now.hour, now.minute, now.second)
   if p == True:
       os.makedirs('./pdata/', exist_ok=True)
@@ -343,6 +343,9 @@ class System(object):
                 next_value = -agent.search(self.game.getCanonicalForm(next_board, -player))
             next_values.append(next_value)
         
+        if len(next_values) <= 1:
+            return 0
+        
         next_values.sort(reverse=True)
         q3 = math.ceil(np.percentile([i for i in range(len(next_values))], 75))
 
@@ -388,8 +391,8 @@ class System(object):
         summary = [summary[x][1] for x in range(len(summary))]
         return summary
     
-    def myHighlights(self, datas, dirname="label", context_length=0, minimum_gap=0, 
-                   budget=5, sthreshold=0.6, wthreshold=0.13, short=10, middle=20):
+    def myHighlights(self, datas, dirname="./label", context_length=0, minimum_gap=0, 
+                   budget=5, sthreshold=0.6, wthreshold=0.13, short=10, middle=23):
         '''
         [0.0030262592179335, 0.12491765714907145, 0.31279777024276917]
         [0.0012928681478933393, 0.1464111499397758, 0.17491868566599517]
@@ -398,6 +401,7 @@ class System(object):
         context_length, minimum_gapを０にすると普通のラベリングになる
         short, middleはもうちょい考えるぞ
         '''
+        
         summary = [] # importance の昇順
         #mctsは後で考える
         min_importance = 0
@@ -1124,23 +1128,25 @@ class System(object):
         
         self.reset_mcts()
         mcts_players = [self.s_mcts, None, self.b_mcts] if self.turn != -1 else [self.b_mcts, None, self.s_mcts]
+        timelimits = [self.strong_timelimit, None, self.weak_timelimit] if self.turn != -1 else [self.weak_timelimit, None, self.strong_timelimit]
         curPlayer = 1
-        for step in range(len(h)-1):
+        for step in range(len(h)-1): #offlineから取得しているから
             #print(step)
             tmp = []
             board, sNsa, bNsa, sv, bv, sVs, bVs = h[step]
+            #print(board, timelimits[curPlayer+1])
             tmp.append(board)
             #curPlayer = getStep(board)
             canonicalBoard = self.game.getCanonicalForm(board, curPlayer)
             s = self.game.stringRepresentation(canonicalBoard)
-            mcts_players[curPlayer + 1].getActionProb(canonicalBoard)
+            mcts_players[curPlayer + 1].getActionProb(canonicalBoard, timelimit=timelimits[curPlayer+1])
             dir_noise = mcts_players[curPlayer + 1].dirichlet_noise
-            v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
+            #v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
             if dual == True:
-                kv = mcts_players[-curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
+                mcts_players[-curPlayer + 1].getActionProb(canonicalBoard, timelimit=timelimits[-curPlayer+1])
             tmp.append(self.s_mcts.Nsa.copy())
             tmp.append(self.b_mcts.Nsa.copy())
-            cp, cv = mcts_players[-curPlayer + 1].nn_agent.predict(canonicalBoard)
+            cp, cv = mcts_players[curPlayer + 1].nn_agent.predict(canonicalBoard)
             
             if curPlayer != self.turn:
                 tmp.append(-self.s_mcts.V[s])
@@ -1836,7 +1842,6 @@ class System(object):
         #print(board)
         #print(type(board))
         h = load_data(path)
-        
         tmp = h[step] # 注目する部分
         tboard, sNsa, bNsa, sv, bv, sVs, bVs = tmp
         
@@ -1894,7 +1899,6 @@ class System(object):
                 return result
             action = np.argmax(self.getPastActionProb(path, step, vboard, 
                                                       analist, counts = counts))
-            
             traj.append(action)
                 
             if valids[action] == 0:

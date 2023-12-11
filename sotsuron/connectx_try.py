@@ -38,8 +38,8 @@ def write_data(history, offline=False, p=False):
   path = './data/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
       now.year, now.month, now.day, now.hour, now.minute, now.second)
   if offline == True:
-      os.makedirs('./offdata/', exist_ok=True)
-      path = './offdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
+      os.makedirs('./poffdata/', exist_ok=True)
+      path = './poffdata/{:04}{:02}{:02}{:02}{:02}{:02}.history'.format(
           now.year, now.month, now.day, now.hour, now.minute, now.second)
   if p == True:
       os.makedirs('./pdata/', exist_ok=True)
@@ -342,6 +342,9 @@ class System(object):
             else:
                 next_value = -agent.search(self.game.getCanonicalForm(next_board, -player))
             next_values.append(next_value)
+        
+        if len(next_values) <= 1:
+            return 0
         
         next_values.sort(reverse=True)
         q3 = math.ceil(np.percentile([i for i in range(len(next_values))], 75))
@@ -1125,6 +1128,7 @@ class System(object):
         
         self.reset_mcts()
         mcts_players = [self.s_mcts, None, self.b_mcts] if self.turn != -1 else [self.b_mcts, None, self.s_mcts]
+        timelimits = [self.strong_timelimit, None, self.weak_timelimit] if self.turn != -1 else [self.weak_timelimit, None, self.strong_timelimit]
         curPlayer = 1
         for step in range(len(h)-1):
             #print(step)
@@ -1134,14 +1138,14 @@ class System(object):
             #curPlayer = getStep(board)
             canonicalBoard = self.game.getCanonicalForm(board, curPlayer)
             s = self.game.stringRepresentation(canonicalBoard)
-            mcts_players[curPlayer + 1].getActionProb(canonicalBoard)
+            mcts_players[curPlayer + 1].getActionProb(canonicalBoard, timelimit=timelimits[curPlayer+1])
             dir_noise = mcts_players[curPlayer + 1].dirichlet_noise
-            v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
+            #v = mcts_players[curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
             if dual == True:
-                kv = mcts_players[-curPlayer + 1].search(canonicalBoard, dirichlet_noise=dir_noise)
+                mcts_players[-curPlayer + 1].getActionProb(canonicalBoard, timelimit=timelimits[-curPlayer+1])
             tmp.append(self.s_mcts.Nsa.copy())
             tmp.append(self.b_mcts.Nsa.copy())
-            cp, cv = mcts_players[-curPlayer + 1].nn_agent.predict(canonicalBoard)
+            cp, cv = mcts_players[curPlayer + 1].nn_agent.predict(canonicalBoard)
             
             if curPlayer != self.turn:
                 tmp.append(-self.s_mcts.V[s])
@@ -1820,7 +1824,7 @@ class System(object):
                 answer = 0
                 continue
     
-    def detectHotState(self, board, analist, path, step, threshold=0.1,limit=100, toend=False, mode="board"):
+    def detectHotState(self, board, analist, path, step, threshold=0.1,limit=100, toend=False, mode="board", neuro=False):
         '''
         thresholdはvalue同士の同じとみなされる最大のライン
         1か-1になった盤面もしくは木の果ての部分
@@ -1861,17 +1865,18 @@ class System(object):
             result = (board, -1) if mode == "board" else (board, -1, traj)
             return result
         
-        
-        if analist == 1:
-            if vs not in sVs.keys():
-                result = (None, None) if mode == "board" else (None, None, None)
-                return result
-        else:
-            if vs not in bVs.keys():
-                result = (None, None) if mode == "board" else (None, None, None)
-                return result
-        vvalue = sVs[vs] if analist ==1 else bVs[vs]
-        vvalue *= vvalue
+        vvalue = 0
+        if not neuro:
+            if analist == 1:
+                if vs not in sVs.keys():
+                    result = (None, None) if mode == "board" else (None, None, None)
+                    return result
+            else:
+                if vs not in bVs.keys():
+                    result = (None, None) if mode == "board" else (None, None, None)
+                    return result
+            vvalue = sVs[vs] if analist ==1 else bVs[vs]
+            vvalue *= vvalue
         
         vplayer = curPlayer
     
@@ -1890,10 +1895,18 @@ class System(object):
             counts = self.getPastCount(path, step, vboard, analist)
             if sum(counts) == 0:
                 # edge
-                result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                return result
-            action = np.argmax(self.getPastActionProb(path, step, vboard, 
-                                                      analist, counts = counts))
+                if not neuro:
+                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                    return result
+                canonicalBoard = self.game.getCanonicalForm(vboard, getCurrentPlayer(vboard))
+                if analist == 1:
+                    p, v = self.s_mcts.nn_agent.predict(canonicalBoard)
+                else:
+                    p, v = self.b_mcts.nn_agent.predict(canonicalBoard)
+                action = np.argmax(p)
+            else:
+                action = np.argmax(self.getPastActionProb(path, step, vboard, 
+                                                        analist, counts = counts))
             traj.append(action)
                 
             if valids[action] == 0:
@@ -1908,18 +1921,22 @@ class System(object):
            
             vstep += 1
             if analist == 1:
-                if vs not in sVs.keys():
-                    # edge
-                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                    return result
+                if not neuro:
+                    if vs not in sVs.keys():
+                        # edge
+                        result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                        return result
             else:
-                if vs not in bVs.keys():
-                    # edge
-                    result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
-                    return result
-                
-            vnextValue = sVs[vs] if analist ==1 else bVs[vs]
-            vnextValue *= modify
+                if not neuro:
+                    if vs not in bVs.keys():
+                        # edge
+                        result = (vboard, 0) if mode == "board" else (vboard, 0, traj)
+                        return result
+            if not neuro:
+                vnextValue = sVs[vs] if analist ==1 else bVs[vs]
+                vnextValue *= modify
+            else:
+                vnextValue = 0
             if not toend:
                 if abs(vnextValue-vvalue) < threshold and abs(vvalue) == 1:
                     # judge

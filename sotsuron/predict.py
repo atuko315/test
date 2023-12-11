@@ -38,8 +38,10 @@ analist = 1
 step = 2
 baseline = 6
 promising = 4
+start = 10
+end = 22
 print(" 1と6")
-print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}")
+print(f"analist: {analist}, step: {step}, baseline: {baseline}, promising: {promising}, start: {start}, end: {end}")
 dataset = DatasetManager(game, [])
 
 ave_bfrate = 0
@@ -58,7 +60,7 @@ for p in paths:
 
     h = load_data(p)
     tmp = h[len(h)-1]
-    print(tmp[3], tmp[5], tmp[4], tmp[6])
+    #print(tmp[3], tmp[5], tmp[4], tmp[6])
     strong_timellimit = tmp[3]
     weak_timelimit = tmp[5]
     strong_puct = tmp[4]
@@ -80,8 +82,7 @@ for p in paths:
         if vf:
             reach.extend(vf)
 
-    start = 15
-    end = 20
+    
     if size%100 == 0:
         print(f"{size}/{len(paths)}")
     if len(h) <= start:
@@ -93,22 +94,26 @@ for p in paths:
         memory = h[i]
         size += 1
         
+        '''
         bfcount, bfdcount = dataset.hot_result_cache(board, memory, reach, sample_system, analist, mode="focus")
         ave_bfrate += bfcount
         ave_bfdrate += bfdcount
 
         '''
         answer = dataset.hot_states_two_ways_cache(board, memory, reach, sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
-        bfcount, bfdcount, sfcount, sfdcount, size = answer
+        bfcount, bfdcount, sfcount, sfdcount = answer
         ave_bfrate += bfcount
         ave_bfdrate += bfdcount
         ave_sfrate += sfcount
         ave_sfdrate += sfdcount
-        '''
+        
+        
         
 
 ave_bfrate /= size
 ave_bfdrate /= size
-print(f"result: {i+1} {ave_bfrate} {ave_bfdrate} {size}")
+ave_sfrate /= size
+ave_sfdrate /= size
+print(f"result: {i+1} {ave_bfrate} {ave_bfdrate} {ave_sfrate} {ave_sfdrate} {size}")
 #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

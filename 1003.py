@@ -11,7 +11,7 @@ from connectx_try import encode_weight, load_buffer, System, extract
 from connect4_game import Connect4Game
 from pathlib import Path
 from connectx_try import load_data, getCurrentPlayer, getStep, store_data
-from feature import DatasetManager
+from sotsuron.feature import DatasetManager
 from random import uniform
 import random
 from time import sleep
@@ -57,7 +57,7 @@ for  i in range(len(paths)):
     #つまり相手の力量を打ちながら計る必要がある？？？？
     dataset = DatasetManager(game, paths[i])
     #ave_brate, ave_bfrate, ave_bfdrate, ave_srate, ave_sfrate, ave_sfdrate, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising)
-    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_two_ways(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
+    bfcount, bfdcount, sfcount, sfdcount, size = dataset.collect_two_ways_cache(sample_system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
     print(f"result: {i+1} {bfcount} {bfdcount} {sfcount} {sfdcount} {size}")
     #print(f"{i+1} {ave_brate} {ave_bfrate} {ave_bfdrate} {ave_srate} {ave_sfrate} {ave_sfdrate} {size}")
 

@@ -59,6 +59,7 @@ class MCTS():
             self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
             for a in range(self.game.getActionSize())
         ]
+        #print(counts)
         if vc == True:
             print(counts)
         if temp == 0:

@@ -56,6 +56,7 @@ dataset = DatasetManager(game, paths)
 analists = [1, -1]
 match = 0
 
+
 index = 0
 for analist in analists: 
     entropies = []

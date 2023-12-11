@@ -26,14 +26,15 @@ sample_b_path = '/home/student/PARL/benchmark/torch/AlphaZero/checkpoint_1.pth.t
 
 game = Connect4Game()
 strong_timellimit = 5
-weak_timelimit = 1 # generateの間を撮った
-strong_puct = 1 
+weak_timelimit = 1
+strong_puct = 1
 weak_puct = 0.25
 sample_system = System(game, sample_s_path, sample_b_path, turn=1, strong_timelimit=strong_timellimit,
                         weak_timelimit=weak_timelimit, strong_puct=strong_puct, weak_puct=weak_puct)
 
-paths = sorted(Path('./data').glob('*.history'))
-count = 2000
+paths = sorted(Path('./offdata').glob('*.history'))
+count = 100
 for i in range(count):
+    print(f"{i}/{count}")
     p = paths[i]
     sample_system.train_offline(p)

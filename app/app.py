@@ -16,11 +16,14 @@ now = datetime.now()
 #file_name = '{:04}{:02}{:02}{:02}{:02}{:02}.csv'.format(
 #      now.year, now.month, now.day, now.hour, now.minute, now.second)
 file_name = "data.csv"
+sub_file_name = "choices.csv"
 game = Connect4Game()
 strong_timellimit = 5
-weak_timelimit = 0.5
+#weak_timelimit = 0.5
+weak_timelimit = 1
 strong_puct = 1
-weak_puct = 0.1
+#weak_puct = 0.1
+weak_puct = 0.25
 
 game =  Connect4Game()
 app = Flask(__name__)
@@ -62,18 +65,29 @@ def update_board():
     memory[-1][4] = b_value
     simp = getMyImportance(board, getStep(board), analist=1)
     
-    wimp = getMyImportance(board, getStep(board), analist=1)
+    wimp = getMyImportance(board, getStep(board), analist=-1)
     memory[-1][7] = simp
     memory[-1][8] = wimp
    
     next_board, next_player = game.getNextState(board, getCurrentPlayer(board), action) 
     result = game.getGameEnded(board, next_player)
-    print(result)
+    fatal = system.detectFatalStone(next_board)
     if result != 0:
+        next_board = game.getInitBoard()
+    
+    if getStep(next_board) >= 42:
+        result = game.getGameEnded(next_board, next_player)
         next_board = game.getInitBoard()
         
     board = np.array(next_board, dtype=np.int32) # クライアントからのデータを受け取り
     print(board)
+    
+    print(fatal)
+    text = [[ -1 for _ in range(7)] for _ in range(6)]
+    if result == 0 and  getStep(next_board) < 42:
+        top = np.where(board[:, action] != 0)[0][0]
+        text[top][action] = 0
+
     # ボードを更新
     # 例: board = updated_board
     # 更新されたボードをクライアントに返す
@@ -81,6 +95,9 @@ def update_board():
         'updatedBoard': board.tolist(),
         'gameResult': result,
         'player': next_player,
+        'action': action,
+        'fatal': fatal,
+        'text': text,
         # 他の情報をここで追加
     }
     return jsonify(response_data)
@@ -92,14 +109,28 @@ def turn_of_AI():
     data = request.get_json()
     board = np.array(data['board'], dtype=np.int32)
     analist = data['analist']
+    result = game.getGameEnded(board, -getCurrentPlayer(board))
+    if result != 0:
+        next_board = game.getInitBoard()
+        fatal = system.detectFatalStone(board)
+        text = [[ -1 for _ in range(7)] for _ in range(6)]
+        response_data = {
+        'updatedBoard': board.tolist(),
+        'gameResult': result,
+        'player': -getCurrentPlayer(board),
+        'fatal': fatal,
+        'text': text,
+        # 他の情報をここで追加
+        }
+        return jsonify(response_data) 
     print("memory", len(memory), analist)
     player = getCurrentPlayer(board)
     canonicalboard = game.getCanonicalForm(board.copy(), player)
     
     if analist == 1:
-        action = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
+        action = np.argmax(system.s_mcts.getActionProb(canonicalboard, timelimit=strong_timellimit, temp=0))
     else:
-        action = np.argmax(system.b_mcts.getActionProb(canonicalboard, temp=0))
+        action = np.argmax(system.b_mcts.getActionProb(canonicalboard,  timelimit=weak_timelimit, temp=0))
     
     #saction = np.argmax(system.s_mcts.getActionProb(canonicalboard, temp=0))
     #waction = np.argmax(system.b_mcts.getActionProb(canonicalboard, temp=0))
@@ -110,24 +141,36 @@ def turn_of_AI():
     memory[-1][3] = s_value
     memory[-1][4] = b_value
     simp = getMyImportance(board, getStep(board), analist=1)
-    wimp = getMyImportance(board, getStep(board), analist=1)
+    wimp = getMyImportance(board, getStep(board), analist=-1)
     memory[-1][7] = simp
     memory[-1][8] = wimp
    
     next_board, next_player = game.getNextState(board, getCurrentPlayer(board), action) 
     result = game.getGameEnded(board, next_player)
+    fatal = system.detectFatalStone(next_board)
     if result != 0:
-        next_board = game.getInitBoard()
         
+        next_board = game.getInitBoard()
+    if getStep(next_board) >= 42:
+        result = game.getGameEnded(next_board, next_player)
+        next_board = game.getInitBoard()
     board = next_board # クライアントからのデータを受け取り
     print(board)
     # ボードを更新
     # 例: board = updated_board
     # 更新されたボードをクライアントに返す
+    
+    print(fatal)
+    text = [[ -1 for _ in range(7)] for _ in range(6)]
+    if result == 0 and  getStep(next_board) < 42:
+        top = np.where(board[:, action] != 0)[0][0]
+        text[top][action] = 0
     response_data = {
         'updatedBoard': board.tolist(),
         'gameResult': result,
         'player': next_player,
+        'fatal': fatal,
+        'text': text,
         # 他の情報をここで追加
     }
     return jsonify(response_data)
@@ -141,10 +184,15 @@ def reset():
     global answer
     data = request.get_json()
     times = data['times']
+    choices = data['choices']
     path = os.path.join(folder_path, file_name)
     with open(path, 'a') as f:
         writer = csv.writer(f)
         writer.writerow(times)
+    path = os.path.join(folder_path, sub_file_name)
+    with open(path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(choices)
     memory = []
     answer = defaultdict(lambda:[])
     system.reset_mcts()
@@ -162,10 +210,15 @@ def start_feedack(analist=1):
     data = request.get_json()
     analist = data['analist']
     importances = [x[7] for x in memory] if analist==1 else [x[8] for x in memory]
+    print(importances)
     most_important = np.argsort(np.array(importances))[-1]
     fboard = memory[most_important][0]
+    count = getPastCount(getStep(fboard), fboard, analist)
+    value = memory[getStep(fboard)][3] if analist == 1 else memory[getStep(fboard)][4]
     response_data = {
         'board': fboard.tolist(),
+        'counts': count,
+        'value': value,
     }
     return jsonify(response_data)
 
@@ -182,14 +235,14 @@ def forward_one():
     if bstep >= len(memory)-1:
         return jsonify({'board': fboard.tolist()})
     fboard = memory[bstep+1][0]
-    counts = getPastCount(bstep, fboard, analist)
-    s_value = memory[bstep+1][3]
+    counts = getPastCount(getStep(fboard), fboard, analist)
+    value = memory[getStep(fboard)][3] if analist == 1 else memory[getStep(fboard)][4]
 
-    print(fboard)
+    print(fboard, counts)
     response_data = {
         'board': fboard.tolist(),
         'counts': counts,
-        'value': s_value,        # 他の情報をここで追加
+        'value': value,        # 他の情報をここで追加
     }
     return jsonify(response_data)
 
@@ -203,19 +256,19 @@ def back_one():
     analist = data['analist']
     bstep = getStep(fboard)
     counts = []
-    s_value = 0
+    value = 0
     if bstep <= 0:
         return jsonify({'board': fboard.tolist()})
-    else:
-        counts = getPastCount(bstep, fboard, analist)
-        s_value = memory[bstep-1][3]
+
     fboard = memory[bstep-1][0]
+    counts = getPastCount(getStep(fboard), fboard, analist)
+    value = memory[getStep(fboard)][3] if analist == 1 else memory[getStep(fboard)][4]
     
     print(fboard)
     response_data = {
         'board': fboard.tolist(),
         'counts': counts, 
-        'value': s_value,
+        'value': value,
         # 他の情報をここで追加
     }
     return jsonify(response_data)
@@ -287,11 +340,13 @@ def traj_plus():
                 text[int(number/7)][number%7] = i+1
     #あとでｖに
     fatal = system.detectFatalStone(vboard)
+    result = getCurrentPlayer(vboard) * game.getGameEnded(vboard, getCurrentPlayer(vboard))
     response_data = {
         'board': tboard.tolist(),
         'text': text,
         'fatal':fatal,
         'tail':len(traj),
+        'win': result,
         # 他の情報をここで追加
     }
 
@@ -305,8 +360,8 @@ def show_traj(analist=1, mode="group"):
     agent = system.s_mcts
     fboard = np.array(data['board'], dtype=np.int32)
     vboard = fboard.copy()
-    trajs = check_frequent_traj(fboard.copy(), analist=1, mode=mode)
-    print(trajs, len(trajs))
+    trajs = check_frequent_traj(fboard.copy(), analist, mode=mode)
+    #print(trajs, len(trajs))
     text = [[ -1 for _ in range(7)] for _ in range(6)]
     vboard = fboard.copy()
     if trajs:
@@ -349,13 +404,43 @@ def get_valids():
     valids = system.game.getValidMoves(fboard, getCurrentPlayer(fboard))
     valids = [i  for i in range(len(valids)) if valids[i]]
     analist = data['analist']
-    importance = getMyImportance(fboard, getStep(fboard), analist)
+    counts = getPastCount(getStep(fboard), fboard, analist)
+    ranks = (np.argsort(counts)[::-1]).tolist()
+    ranks = [ranks.index(x) for x in range(7)]
+    print(counts, ranks)
+    my_importance = getMyImportance(fboard, getStep(fboard), analist)
+    importance = getImportance(fboard, getStep(fboard), analist)
     response_data = {
         'valids': valids,
+        'my_importance': my_importance,
         'importance': importance,
+        'ranks': ranks,
+
     }
-    print(valids)
     return jsonify(response_data)
+
+def getImportance(board, step, analist, baseline=1):
+    player = getCurrentPlayer(board)
+    valids = game.getValidMoves(board, player)
+    next_values = []
+
+    for a in range(game.getActionSize()):
+        if not valids[a]:
+            continue
+        next_board, _ = game.getNextState(board.copy(), player, a)
+        #print(type(next_board))
+        next_value = - getPastValue(next_board, analist)
+        
+        next_values.append(next_value)
+    
+    next_values.sort(reverse=True)
+    if len(next_values) <= 1:
+        return 0
+    print(next_values[:2])
+    if len(next_values) < baseline:
+        return abs(next_values[0] - next_values[-1])
+    else:
+        return abs(next_values[0] - next_values[baseline])
 
 def getMyImportance(board, step, analist):
         #　一番上から第3四分位数までの分散
@@ -368,13 +453,52 @@ def getMyImportance(board, step, analist):
                 continue
             next_board, _ = game.getNextState(board.copy(), player, a)
             next_value = - get_past_value(next_board, step, analist)
+            
             #print(type(next_board))
             next_values.append(next_value)
         
+        if len(next_values) <= 1:
+            return 0
         next_values.sort(reverse=True)
+        
         q3 = math.ceil(np.percentile([i for i in range(len(next_values))], 75))
-
         return np.var(next_values[:q3])
+
+def getPastValue(board, analist):
+    tmp = memory[getStep(board)]
+    fboard, sNsa, bNsa, sv, bv, sVs, bVs, simp, wimp = tmp
+    curPlayer = getCurrentPlayer(board)
+    canonicalBoard= game.getCanonicalForm(board, curPlayer)
+    s = game.stringRepresentation(canonicalBoard)
+    if analist == 1:
+        if s in sVs.keys():
+            #print(self.getPastCount(path, step, board, 1))
+            #print(s)
+            #print(sVs[s])
+            #print("in")
+            if type(sVs[s]) == int:
+                return float(sVs[s]) 
+            elif type(sVs[s]) == np.ndarray:
+                return sVs[s].astype(np.float32).tolist()[0]
+            
+            return sVs[s]
+        else:
+            cp, cv = system.s_mcts.nn_agent.predict(canonicalBoard)
+            return cv.astype(np.float32).tolist()[0]
+    else:
+        if s in bVs.keys():
+            
+            if type(bVs[s]) == int:
+                return float(bVs[s]) 
+            elif type(bVs[s]) == np.ndarray:
+                return bVs[s].astype(np.float32).tolist()[0]
+            
+            return bVs[s]
+        else:
+            cp, cv = system.b_mcts.nn_agent.predict(canonicalBoard)
+            return cv.astype(np.float32).tolist()[0]
+
+
 
 @app.route('/hot_traj', methods=['POST'])
 def hot_traj(analist = 1):
@@ -385,37 +509,41 @@ def hot_traj(analist = 1):
     bstep = getStep(fboard)
     analist = data['analist']
     limit = data ['limit']
-    traj = [action]
-    vboard, _ = game.getNextState(fboard, getCurrentPlayer(fboard), action)
-    _, _, atraj = detectHotState(vboard, analist, getStep(vboard)-1) # 一手勝手に打ってるから
-    vboard = fboard.copy()
-    traj.extend(atraj)
     text = [[ -1 for _ in range(7)] for _ in range(6)]
-    
-    vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[0], number=True)
-    tboard = vboard.copy()
+    traj = [action]
+    vboard, number = system.add_stone(fboard, getCurrentPlayer(fboard), traj[0], number=True)
     text[int(number/7)][number%7] = 0
-    value = get_past_value(fboard, bstep, analist=1)
+    value = get_past_value(vboard, bstep, analist)
+    rboard, _, atraj = detectHotState(vboard, analist, getStep(vboard)-1) # 一手勝手に打ってるから
+    print(rboard)
+    result = getCurrentPlayer(rboard) * game.getGameEnded(rboard, getCurrentPlayer(rboard))
+    traj.extend(atraj)
+    tboard = vboard.copy()
+    
+    
     limit = min(limit, len(traj))
     if traj:
-        for i in range(1, limit):
+        for i in range(1, len(traj)):
             vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[i], number=True)
             if i < limit:
                 tboard = vboard.copy()
                 text[int(number/7)][number%7] = i+1
+    print(vboard)
     fatal = system.detectFatalStone(vboard)
-    
+    print(fatal)
     response_data = {
         'board': tboard.tolist(),
         'text': text,
         'fatal': fatal, 
         'tail': len(traj),
         'value': value,
+        'win': result,
     }
     return jsonify(response_data)
 
 @app.route('/my_hot_traj', methods=['POST'])
 def my_hot_traj(analist = 1, mode="group", tail=3):
+
     action = -1
     data = request.get_json()
     action = data['action']
@@ -431,7 +559,9 @@ def my_hot_traj(analist = 1, mode="group", tail=3):
     else:
         traj = []
     vboard, _ = game.getNextState(fboard, getCurrentPlayer(fboard), action)
-    trajs, most_hot_trajs = my_hot_traj_sub(vboard, bstep, analist=analist, mode=mode) # 一手勝手に打ってるから
+    value = get_past_value(vboard, bstep, analist)
+    trajs, most_hot_trajs = my_hot_traj_sub(vboard, bstep, analist=analist, mode=mode, value=value) # 一手勝手に打ってるから
+
     #print(trajs)
     new_trajs = []
     if action != -1:
@@ -458,7 +588,7 @@ def my_hot_traj(analist = 1, mode="group", tail=3):
 
     
     traj = min_traj
-    print(traj)
+    #print(traj)
     vboard = fboard.copy()
     text = [[ -1 for _ in range(7)] for _ in range(6)]
     limit = min(limit, len(traj))
@@ -467,7 +597,7 @@ def my_hot_traj(analist = 1, mode="group", tail=3):
     vboard, number = system.add_stone(vboard, getCurrentPlayer(vboard), traj[0], number=True)
     text[int(number/7)][number%7] = 0
     tboard = vboard.copy()
-    value = get_past_value(vboard, bstep, analist=1)
+    
     if len(traj) > 1: 
         
         for i in range(1, len(traj)):
@@ -477,7 +607,9 @@ def my_hot_traj(analist = 1, mode="group", tail=3):
                 tboard = vboard.copy()
             
     fatal = system.detectFatalStone(vboard)
+    result = getCurrentPlayer(vboard) * game.getGameEnded(vboard, getCurrentPlayer(vboard))
     #new_trajs = np.array(new_trajs, dtype=np.int32).tolist()
+    new_trajs = get_unique_list(new_trajs)
     
     
     size = len(traj)
@@ -488,13 +620,14 @@ def my_hot_traj(analist = 1, mode="group", tail=3):
         'tail': size,
         'trajs':new_trajs,
         'value':value,
+        'win': result
     }
     return jsonify(response_data)
 
 
 
 def extract_min(trajs):
-    print(trajs)
+    #print(trajs)
     min = 100
     min_traj = []
    
@@ -505,10 +638,10 @@ def extract_min(trajs):
             min = len(t)
     return min_traj
     
-def my_hot_traj_sub(fboard, bstep, analist=1, step=2, baseline=4, mode="group"):
-    answer = hot_states_one_way(fboard.copy(), analist=analist, step=step, baseline=baseline, fix=bstep)
+def my_hot_traj_sub(fboard, bstep, analist=1, step=2, baseline=4, mode="group", value=None):
+    answer = hot_states_one_way(fboard.copy(), analist=analist, step=step, baseline=baseline, fix=bstep, value=value)
     if not answer:
-        return []
+        return [], [[-1]]
     bfcount, bfdcount, new_trajs, gs4, gd2, groups, visual = answer
     groups = dict(groups)
     
@@ -524,6 +657,8 @@ def my_hot_traj_sub(fboard, bstep, analist=1, step=2, baseline=4, mode="group"):
                     traj.extend(g)
     
     most_hot_trajs = groups[str(gd2[0])] if gd2 else [[-1]]
+    #print(most_hot_trajs)
+    #print(traj, most_hot_trajs)
     return traj, most_hot_trajs
 
 
@@ -531,7 +666,7 @@ def check_frequent_traj(fboard, analist=1, mode="group"):
     global answer
     key = getStep(fboard) * analist
     if not answer[key]:
-        answer[key] = hot_states_one_way(fboard.copy(), analist=analist, step=4, baseline=2, fix=-1)
+        answer[key] = hot_states_one_way(fboard.copy(), analist=analist, step=4, baseline=2, fix=-1, value=None)
     bfcount, bfdcount, new_trajs, gs4, gd2, groups, visual = answer[key]
     print(gd2)
     groups = dict(groups)
@@ -548,7 +683,7 @@ def check_frequent_traj(fboard, analist=1, mode="group"):
                     traj.extend(g)
     return traj
 
-def hot_states_one_way(fboard, analist=1, step=4, baseline=2, fix=-1):
+def hot_states_one_way(fboard, analist=1, step=4, baseline=2, fix=-1, value=None):
     reach = detect_actual_reach()
     bstep = getStep(fboard)
     if fix != -1:
@@ -562,15 +697,16 @@ def hot_states_one_way(fboard, analist=1, step=4, baseline=2, fix=-1):
     if not btrajs:
         return None
     
-    bfcount, bfdcount, trajs, gs4, gd2, groups, visual = check_convergence(boards, reach, bstep,  analist, btraj=btrajs)
+    bfcount, bfdcount, trajs, gs4, gd2, groups, visual = check_convergence(boards, reach, bstep,  analist, btraj=btrajs, value=value)
     return bfcount, bfdcount, trajs, gs4, gd2, groups, visual
 
-def check_convergence(boards, reach, bstep,  analist, btraj=None):
+def check_convergence(boards, reach, bstep,  analist, btraj=None, value=None):
     gd = defaultdict(lambda: 0)
     gs = defaultdict(lambda: 0)
     trajs = []
     groups = defaultdict(lambda: [])
     size = len(boards)
+    
     if size < 1:
         return [], [], []
     
@@ -581,7 +717,7 @@ def check_convergence(boards, reach, bstep,  analist, btraj=None):
     index = 0
 
     for b in boards:
-        group, stones, traj = check_convergence_per_board(b, reach, bstep, analist)
+        group, stones, traj = check_convergence_per_board(b, reach, bstep, analist, value=value)
         print(group, traj)
         if btraj[index]:
             if traj:
@@ -640,7 +776,7 @@ def check_convergence(boards, reach, bstep,  analist, btraj=None):
     print( bfcount, bfdcount, trajs, gs4, gd2, groups, visual)
     return bfcount, bfdcount, trajs, gs4, gd2, groups, visual
 
-def check_convergence_per_board(board, reach, bstep, analist):
+def check_convergence_per_board(board, reach, bstep, analist, value=None):
         bcount = 0
         bfcount = 0
         bfdcount = 0
@@ -652,7 +788,18 @@ def check_convergence_per_board(board, reach, bstep, analist):
             return None, None, None
             
         end = game.getGameEnded(hot[0], getCurrentPlayer(hot[0]))
-        if abs(end) == 1:
+        
+        
+        
+        if value:
+            value = -value * getCurrentPlayer(memory[bstep][0])
+            end_value = end * getCurrentPlayer(hot[0])
+            print(value, end_value)
+            if value * end_value < 0:
+                # 勝敗が逆
+                return None, None, None
+            
+        if abs(end) != 0:
             
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
@@ -737,28 +884,40 @@ def collect_promising_vector_sub(boards, key_c, analist, step=2, baseline=4, fix
         
         return new_trajs, new_boards
 
-def collect_promising_per_step(board, analist, baseline=4, fix=-1):
-    if game.getGameEnded(board, getCurrentPlayer(board)):
-        fboards = []
-        for i in range(baseline):
-            fboards.append(board)
-        return fboards
-
-    #    return board こっちが終わり切り捨て番
-
-    max_step = len(memory) - 1
+def collect_promising_per_step(board, analist, baseline=4, fix=-1, neuro=True):
     if analist == 0:
         analist = getCurrentPlayer(board)
-    valid = game.getValidMoves(board, getCurrentPlayer(board))
-    valid = [i  for i in range(len(valid)) if valid[i]]
-    l = len(valid) if len(valid) < baseline else baseline
-    #print(fpath, getStep(board))
+    max_step = len(memory) - 1
     bstep = getStep(board)
     bstep = max_step if bstep > max_step else bstep
     if fix != -1:
         bstep = fix
     
     counts =  getPastCount(bstep, board, analist)
+    if game.getGameEnded(board, getCurrentPlayer(board)) or (not neuro and sum(counts)==0):
+        fboards = []
+        for i in range(baseline):
+            fboards.append(board)
+        return fboards
+    
+    if sum(counts) == 0:
+        canonicalBoard = game.getCanonicalForm(board, getCurrentPlayer(board))
+        if analist == 1:
+            p, v = system.s_mcts.nn_agent.predict(canonicalBoard)
+        else:
+            p, v = system.b_mcts.nn_agent.predict(canonicalBoard)
+        
+        counts = p
+
+    #    return board こっちが終わり切り捨て番
+
+    
+    
+    valid = game.getValidMoves(board, getCurrentPlayer(board))
+    valid = [i  for i in range(len(valid)) if valid[i]]
+    l = len(valid) if len(valid) < baseline else baseline
+    #print(fpath, getStep(board))
+    
     counts = np.argsort(np.array(counts))
 
     counts = [c for c in counts if c in valid]
@@ -827,7 +986,7 @@ def hot_vector_one_way(fboard,  analist=1, step=2, baseline=4, fix=-1):
     trajs = collect_promising_vector(fboard, key_c, analist, step, baseline=baseline, fix = bstep, mode="vector")
     vector = 0
     distance = 0
-    print(trajs)
+    #print(trajs)
     for traj in trajs:
         if traj:
             vecs = [t[0] for t in traj]
@@ -843,7 +1002,7 @@ def hot_vector_one_way(fboard,  analist=1, step=2, baseline=4, fix=-1):
 
     return vector, distance, metric
 
-def detectHotState(board, analist, step):
+def detectHotState(board, analist, step, neuro=True):
         zboard, sNsa, bNsa, sv, bv, sVs, bVs, simp, wimp = memory[step]
         zflag = True if analist == 0 else False
 
@@ -861,9 +1020,12 @@ def detectHotState(board, analist, step):
             analist = getCurrentPlayer(board)
         counts = getPastCount(step, vboard, analist)
         if sum(counts) == 0:
-                # edge
-                result = (vboard, 0, traj)
-                return result
+                if not neuro:
+                    # edge
+                    result = (vboard, 0, traj)
+                    return result
+                
+
                 
         #print(self.getPastValueNoModification( path, step, vboard, 1))
         if game.getGameEnded(board, curPlayer):
@@ -873,13 +1035,15 @@ def detectHotState(board, analist, step):
         
         
         if analist == 1:
-            if vs not in sVs.keys():
-                result = (None, None, None)
-                return result
+            if not neuro:
+                if vs not in sVs.keys():
+                    result = (None, None, None)
+                    return result
         else:
-            if vs not in bVs.keys():
-                result = (None, None, None)
-                return result
+            if not neuro:
+                if vs not in bVs.keys():
+                    result = (None, None, None)
+                    return result
        
         
         vplayer = curPlayer
@@ -895,19 +1059,41 @@ def detectHotState(board, analist, step):
             valids = game.getValidMoves(vboard, vplayer)
             counts = getPastCount(step, vboard, analist)
 
-            if sum(counts) == 0:
-                # edge
-                result = (vboard, 0, traj)
-                return result
-            
+           
 
-            action = np.argmax(counts)
-            traj.append(action)
-            #print(traj)
+            if sum(counts) == 0:
+                if not neuro:
+                    # edge
+                    result = (vboard, 0, traj)
+                    return result
                 
+                canonicalBoard = game.getCanonicalForm(vboard, getCurrentPlayer(vboard))
+                if analist == 1:
+                    p, v = system.s_mcts.nn_agent.predict(canonicalBoard)
+                else:
+                    p, v = system.b_mcts.nn_agent.predict(canonicalBoard)
+                p = np.argsort(p)
+                a = 1
+                action = p[-a]
+                while valids[action] == 0:
+                    print("loop")
+                    a -= 1
+                    if a <= -7:
+                        result = (vboard, None, traj)
+                        return result
+                    action = p[-a]
+            else:
+                action = np.argmax(counts)
+            
             if valids[action] == 0:
+                print("not valid")
                 result = (vboard, None, traj)
                 return result
+            
+            traj.append(action)
+                #print(traj)
+                    
+                
             
             
                 
@@ -917,15 +1103,17 @@ def detectHotState(board, analist, step):
            
             vstep += 1
             if analist == 1:
-                if vs not in sVs.keys():
-                    # edge
-                    result = (vboard, 0, traj)
-                    return result
+                if not neuro:    
+                    if vs not in sVs.keys():
+                        # edge
+                        result = (vboard, 0, traj)
+                        return result
             else:
-                if vs not in bVs.keys():
-                    # edge
-                    result = (vboard, 0, traj)
-                    return result
+                if not neuro:
+                    if vs not in bVs.keys():
+                        # edge
+                        result = (vboard, 0, traj)
+                        return result
                 
             
           
@@ -937,6 +1125,7 @@ def detectHotState(board, analist, step):
             
             
             vboard = vnextBoard
+            print(vboard)
 
 def detect_relative_distance(pa, ca, limit=3):
         '''
@@ -981,7 +1170,10 @@ def get_past_value(fboard, step, analist=1):
         else:
             cp, cv = system.b_mcts.nn_agent.predict(canonicalboard)
             return cv.astype(np.float32).tolist()[0]
-
+        
+def get_unique_list(seq):
+    seen = []
+    return [x for x in seq if x not in seen and not seen.append(x)]
     
            
 
@@ -991,5 +1183,5 @@ def get_past_value(fboard, step, analist=1):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5010))
-    app.run(host='0.0.0.0', port=port)
-    app.run(debug=True)
+    #app.run(debug=True)
+    app.run(host='0.0.0.0', port=80, debug=False)

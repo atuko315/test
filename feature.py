@@ -1200,7 +1200,9 @@ class DatasetManager(object):
         trate = 0
         
         #print(most_hot)
+
         if len(hot_trajs) > 0:
+           
             tails = self.extract_traj_tail(hot_trajs, threshold=tail)
             trate = len(tails) / len(hot_trajs)
             #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
@@ -1211,16 +1213,19 @@ class DatasetManager(object):
             bfcount = 0
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
+            
             for i in range(len(reach)):
                         r = reach[i]
                         if set(r).issubset(set(most_hot)):
                             bfcount = 1
             #print(fu, ru, len(set(fu) & set(ru)))つくる
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
             
 
             
-            if set(fu).issubset(set(ru)):
-                bfcount = 1
+          
         
         #print(bfcount, bfdcount, hot_trajs, rate, trate)
         return bfcount, bfdcount, hot_trajs, rate, trate
@@ -1344,6 +1349,12 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
+
+
             if mode == "focus":
                 return bfcount, bfdcount
             else:
@@ -1414,6 +1425,11 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
+
                 '''
                 gs = str(g)
                 #print(fatal_group.keys())
@@ -1809,7 +1825,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            if getStep(board) < 15 or getStep(board) > 20:
+            if getStep(board) < 15:
                 continue
             #if abs(analist) == 1:
             #    if getCurrentPlayer(board) != analist:
@@ -1886,6 +1902,115 @@ class DatasetManager(object):
             #print(bfcount, bfdcount)
             return bfcount, bfdcount
     
+    def difference_cache(self, board, system, analist, memory, reach, step=2, baseline=4, threshold=4):
+        # 最も良い選択肢のgd2[0]を基準にし、そこからの近さを判断　二番目に良い手ですら　０とかやったらその手は一択系なんやと　どこかでガクッと変わるんやったらそこが重要
+        #　長さにも注目　4　短期か長期か　短期的なのは局所的　長期的な手は大局的 手数大差なかったらおなじようなもんとかんがえてよい
+        valid = self.game.getValidMoves(board, getCurrentPlayer(board))
+        valid = [i  for i in range(len(valid)) if valid[i]]
+        #print(fpath, getStep(board))
+        bstep = getStep(board) 
+        counts = self.getPastCountCache(board, analist, memory)
+        if sum(counts) == 0:
+            return None
+        #print(counts)
+        counts = np.argsort(np.array(counts)) #[1, 2, 3]
+        counts = counts[::-1] #降順
+        long_flag = False
+        best = counts[0]
+        #一番良いパターンは短期型か長期型か
+        vboard, _ = self.game.getNextState(board.copy(), getCurrentPlayer(board), best)
+        answer = self.hot_states_one_way_cache(vboard, system, analist, memory, reach, step, baseline, mode="traj", action=best)
+        bfcount, bfdcount, trajs, gs4, gd2, groups = answer
+        standard = gd2[0]
+        if not standard:
+            return None
+        
+        standard_trajs = groups[str(gd2[0])]
+        ave_length = 0
+        if trajs:
+            for t in trajs:
+                ave_length += len(trajs)
+            ave_length /= len(trajs)
+        if ave_length > threshold:
+            long_flag = True
+        #短期＜ー＞長期　でガクッと下がる分岐を返す 
+        fatals = []
+        short_data = []
+        long_data = []
+        for c in counts:
+            if c == best:
+                continue
+            vboard, _ = self.game.getNextState(board.copy(), getCurrentPlayer(board), c)
+            answer = self.hot_states_one_way_cache(vboard, system, analist, memory, reach, step, baseline, mode="traj", action=c)
+            bfcount, bfdcount, trajs, gs4, gd2, groups = answer
+            tmp = []
+            trajs = []
+            if gd2:
+                tmp = gd2[0]
+                trajs = groups[tmp]
+            ave_length = 0
+            if trajs:
+                for t in trajs:
+                    ave_length += len(trajs)
+                ave_length /= len(trajs)
+            
+            similarity = self.cal_fdcount(standard, tmp)
+            if ave_length < threshold:
+                short_data.append(tmp, trajs, ave_length, similarity)
+            else:
+                long_data.append(tmp, trajs, ave_length, similarity)
+            
+        if (not short_data) and (not long_data):
+            return None  
+        
+        
+        # ave_length が違うグループから最もsimilarityが低いものをとりだす
+        # ave_lengthが違うグループが無い場合、同グループの最もsimilarityが低いものをとりだす
+        if long_flag:
+            data = short_data if short_data else long_data
+        else:
+            data = long_data if long_data else short_data
+        
+        sim = [x[3] for x in data]
+        arg = np.argsort(np.array(sim))
+
+        dis_traj = data[arg][1]
+
+        return dis_traj
+
+
+
+    def cal_fcount(fatal, reach):
+        fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
+        ru = np.unique(reach.copy()).tolist() if reach else [-2]
+        bfcount = 0
+        
+        if fatal:
+                for g in fatal:
+                    for i in range(len(reach)):
+                        r = reach[i]
+                        if set(r).issubset(set(g)):
+                            bfcount = 1
+            
+        if ru == [-2] and fu == [-1]:
+            bfcount = 1
+        
+        return bfcount
+
+    def cal_fdcount(fatal, reach):
+        fu = np.unique(fatal.copy()).tolist() if fatal else [-1]
+        ru = np.unique(reach.copy()).tolist() if reach else [-2]
+        bfdcount = 0
+    
+        if len(set(ru)) > 0:
+            bfdcount = (len(set(fu) & set(ru))) / 4
+
+        if ru == [-2] and fu == [-1]:
+            bfdcount = 1
+        
+        return bfdcount
+
+
     def collect_hot_results_cache(self, system, analist, mode="focus"):
         size = 0
         ave_brate = 0
@@ -1899,7 +2024,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            if getStep(board) < 15 or getStep(board) > 20:
+            if getStep(board) < 15:
                 continue
             #if abs(analist) == 1:
             #    if getCurrentPlayer(board) != analist:
@@ -1955,9 +2080,9 @@ class DatasetManager(object):
             bcount = 1
             fatal = system.detectFatalStone(hot[0], per_group=True)
             fu = np.unique(fatal.copy()).tolist() if fatal else []
-            
-            if len(fatal) > 1:
-                size = len(fatal)
+           
+            #if len(fatal) > 1:
+            #    size = len(fatal)
                 #a = np.random.randint(0, size-1)
                 
                 #fatal = fatal[a]
@@ -1968,14 +2093,22 @@ class DatasetManager(object):
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
+            bfdcount = min(1, bfdcount)
             #print(fu, ru, len(set(fu) & set(ru)))つくる
             
             if fatal:
                 for g in fatal:
                     for i in range(len(reach)):
                         r = reach[i]
+                        
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
+
+
             '''
             for i in range(len(reach)):
                         r = reach[i]
@@ -2073,7 +2206,7 @@ class DatasetManager(object):
             else:
                 imp, board, branch, fpath, importance = content
 
-            if getStep(board) < 15 or getStep(board) > 20:
+            if getStep(board) < 15:
                     continue
             h = load_data(fpath)
             tmp = h[len(h)-2]
@@ -2092,7 +2225,7 @@ class DatasetManager(object):
             
             if mode == "focus":
                 bfcount, bfdcount, sfcount, sfdcount = self.hot_states_two_ways_cache(board, memory, reach, system, analist, step=step, baseline=baseline, promising=promising, mode="focus")
-                print(bfcount, bfdcount, sfcount, sfdcount)
+                #print(bfcount, bfdcount, sfcount, sfdcount)
                 ave_bfrate += bfcount
                 ave_bfdrate += bfdcount
                 ave_sfrate += sfcount
@@ -2219,7 +2352,8 @@ class DatasetManager(object):
         focusとtrajのみ
         '''
         assert step > 0
-        
+       
+       
         
         action = -1
         b = self.collect_promising_per_step_cache(board, memory, system, analist, baseline=2)
@@ -2231,13 +2365,13 @@ class DatasetManager(object):
         btrajs = []
         if mode != "traj":
             boards = self.collect_promising_cache(board, memory, system, analist, step, baseline=baseline)
-            
         else:
             height, width = self.game.getBoardSize()
             
             btrajs, boards = self.collect_promising_vector_sub_cache(board, 0, memory, system, analist, step, baseline=baseline, mode="normal", action=action)
            
             new_trajs = []
+            print(btrajs)
            
             if not btrajs:
                 return None
@@ -2399,6 +2533,10 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(most_hot)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
             #print(fu, ru, len(set(fu) & set(ru)))つくる
             #print(bfcount, bfdcount)
 
@@ -2500,7 +2638,8 @@ class DatasetManager(object):
             gd2 = [eval(g) for g in gd2]
             
             #多い起動をオンライン的に取り出す場合はg2, g4を取り出す
-            #gs4 = gd2[0]
+            if gd2:
+                gs4 = gd2[0]
             #fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             fu = np.unique(gs4.copy()).tolist() if gs4 else [-1]
             ru = np.unique(reach.copy()).tolist() if reach else [-2]
@@ -2508,6 +2647,7 @@ class DatasetManager(object):
             bfcount = 0
             if len(set(ru)) > 0:
                 bfdcount = (len(set(fu) & set(ru))) / 4
+            bfdcount = min(1, bfdcount)
             #print(fu, ru, len(set(fu) & set(ru)))つくる
             
             if gd2:
@@ -2516,6 +2656,10 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
             '''
             g = gd2[0]
             for i in range(len(reach)):
@@ -2572,6 +2716,10 @@ class DatasetManager(object):
                         r = reach[i]
                         if set(r).issubset(set(g)):
                             bfcount = 1
+            
+            if ru == [-2] and fu == [-1]:
+                bfdcount = 1
+                bfcount = 1
                 '''
                 gs = str(g)
                 #print(fatal_group.keys())
@@ -2769,6 +2917,11 @@ class DatasetManager(object):
         
         counts = self.getPastCountCache(board, analist, memory)
         #print(counts)
+        if sum(counts) == 0:
+            fboards = []
+            for i in range(baseline):
+                fboards.append(board)
+            return fboards
         counts = np.argsort(np.array(counts)) #[1, 2, 3]
         #print(counts)
 
