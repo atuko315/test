@@ -1,0 +1,8 @@
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 1, neuro: False, normalization: True
+result: 16 0.524260298734659 0.5455950908571973 0.19688897345637904 0.25303253734183234 21022
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 2, neuro: False, normalization: True
+result: 16 0.3711350014270764 0.5606031776234421 0.0 0.0 21022
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 2, neuro: False, normalization: True
+result: 25 0.4382478199148246 0.6295376191441898 0.0 0.0 9862
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 1, neuro: False, normalization: True
+result: 25 0.6013993104846888 0.6077367673899817 0.2343338065301156 0.2840448184952342 9862

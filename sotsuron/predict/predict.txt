@@ -1,0 +1,24 @@
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 1, neuro: False, normalization: True
+result: 16 0.524260298734659 0.5455950908571973 0.19688897345637904 0.25303253734183234 21022
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 2, neuro: False, normalization: True
+result: 16 0.3711350014270764 0.5606031776234421 0.0 0.0 21022
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 1, neuro: False, normalization: True"
+result: 25 0.6013993104846888 0.6077367673899817 0.2343338065301156 0.2840448184952342 9862
+
+analist: -1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 1, neuro: False, normalization: True
+result: 25 0.33187994321638614 0.3492952747921314 0.18910971405394444 0.24883390792942608 9862
+"
+analist: -1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 2, neuro: False, normalization: True"
+result: 25 0.20036503751774487 0.26891097140539444 0.0 0.0 9862
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 1, neuro: True, normalization: True"
+result: 25 0.6287771243155547 0.6133897789495032 0.4678564185763537 0.4976171162036098 9862
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 2, neuro: True, normalization: True"
+result: 25 0.4382478199148246 0.6295376191441898 0.0 0.0 9862
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 1, neuro: True, normalization: True"
+result: 16 0.551898011606888 0.5526591190181714 0.4037199124726477 0.4457235277328513 21022
+
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 2, neuro: True, normalization: True"
+result: 16 0.37189610883835983 0.5618399771667777 0.0 0.0 21022

@@ -1,0 +1,19 @@
+"
+
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 1, neuro: False, normalization: True"
+result: 16 0.5279706973646656 0.5485324897726191 0.21548853581961755 0.27474788317001236 21022
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 2, neuro: False, normalization: True"
+result: 16 0.3716106935591285 0.5619351155931881 0.0 0.0 21022
+
+
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 1, neuro: False, normalization: True, memory: ./offdata"
+result: 25 0.60423849117826 0.6102464003244777 0.25370107483269116 0.30688501318191036 9862
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 19, end: 24, method: 2, neuro: False, normalization: True, memory: ./offdata"
+result: 25 0.440073007503549 0.6306276617319002 0.0 0.0 9862
+"
+analist: 1, step: 2, baseline: 6, promising: 4, start: 13, end: 24, method: 2, neuro: True, normalization: True, memory: ./offdata"
+result: 16 0.3722290933307963 0.5630886690134145 0.0 0.0 21022
